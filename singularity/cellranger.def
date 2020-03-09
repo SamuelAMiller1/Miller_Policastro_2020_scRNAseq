@@ -1,0 +1,15 @@
+Bootstrap: docker
+From: ubuntu:latest
+
+%post
+
+apt-get -y update
+apt-get -y install build-essential wget
+
+cd /opt
+wget -O cellranger-3.1.0.tar.gz "http://cf.10xgenomics.com/releases/cell-exp/cellranger-3.1.0.tar.gz?Expires=1583802392&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cDovL2NmLjEweGdlbm9taWNzLmNvbS9yZWxlYXNlcy9jZWxsLWV4cC9jZWxscmFuZ2VyLTMuMS4wLnRhci5neiIsIkNvbmRpdGlvbiI6eyJEYXRlTGVzc1RoYW4iOnsiQVdTOkVwb2NoVGltZSI6MTU4MzgwMjM5Mn19fV19&Signature=KJeCEpjSqNK2irE4gfkw1JcTW8OITkA-Gfu2BBA3OWQGAaUlLHJXlHXAZOPa0as5JngZCA0mX079v58CXEjhZCw1X0ZTmIYza4ReEEsrhtcJjGaqo90dzGqiVrDHmYzHJ3LZ9o2NOwKY~9WL2mfT9RU2pclzdFTzwe05gGQDDrV1eU2dg~c8wYHc41CjqRt3kzqv162upviT47es12K6CxzeqEGWn-XlfC~hjsk54fQdeY47cN7uy5VDbRfWPZ3mT6STi1dnaE8ToCpJGeENz~AWu39JydP8P48xWkMcdwu4n3g~lEzIWufEkzZK1YQCBZ0p08IQ8~CN5LymzZxjYQ__&Key-Pair-Id=APKAI7S6A5RYOXBWRPDA"
+tar -xzvf cellranger-3.1.0.tar.gz
+
+%environment
+
+export PATH=/opt/cellranger-3.1.0:$PATH
