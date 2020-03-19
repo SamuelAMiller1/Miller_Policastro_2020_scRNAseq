@@ -1,0 +1,27 @@
+bootstrap: docker
+From: continuumio/miniconda3
+
+%post
+
+## Allow conda to run.
+
+. /opt/conda/etc/profile.d/conda.sh
+
+## Update conda.
+
+conda update -n base -y -c defaults conda
+
+## Install required software.
+
+conda create -n seurat -y -c conda-forge -c bioconda -c defaults -c tdido \
+r-tidyverse r-devtools r-data.table r-seurat r-clustree \
+bioconductor-genomicranges bioconductor-genomicfeatures \
+bioconductor-rtracklayer
+
+## Update environment.
+
+conda update -n seurat -y -c conda-forge -c bioconda --all
+
+## Clean up extra files.
+
+conda clean -y --all
