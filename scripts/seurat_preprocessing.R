@@ -211,5 +211,7 @@ if (!dir.exists(file.path("results", "cerebro"))) {
 exportFromSeurat(
 	seurat_cerebro, assay = "SCT", file = file.path("results", "cerebro", "cerebro.crb"),
 	experiment_name = "LSD1_KD", organism = "hg", column_sample = "orig.ident",
-	column_cluster = "integrated_snn_res.0.8"
+	column_cluster = "integrated_snn_res.0.8", column_nUMI = "nCount_RNA",
+	column_nGene = "nFeature_RNA", column_cell_cycle_seurat = "Phase"
+)
 )
