@@ -1,6 +1,6 @@
 ## Load singularity container.
 ##
-## singularity shell -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_seurat_3.1.sif
+## singularity shell -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_seurat_3.1.4.sif
 ##
 ## . /opt/conda/etc/profile.d/conda.sh
 ## conda activate seurat; R
@@ -12,6 +12,8 @@ library("data.table")
 library("tidyverse")
 library("clustree")
 library("future")
+library("unixtools")
+library("cerebroApp")
 
 ##########################
 ## Seurat Analysis LSD1 ##
@@ -19,7 +21,8 @@ library("future")
 
 setwd("..")
 
-plan("multiprocess", workers = 8)
+options(future.globals.maxSize = 10000 * 1024 ^2)
+plan("multiprocess", workers = 2)
 
 if (!dir.exists("results")) dir.create("results")
 
@@ -114,10 +117,10 @@ seurat_obj <- PrepSCTIntegration(seurat_obj, anchor.features = integration_featu
 
 ## Integrate the reference dataset.
 
-reference_dataset <- which(names(seurat_obj) == "COLON_1")
+reference_datasets <- which(names(seurat_obj) %in% c("COLON_1", "HT29_EV", "H508_EV"))
 integration_anchors <- FindIntegrationAnchors(
 	seurat_obj, normalization.method = "SCT", anchor.features = integration_features,
-	reference = reference_dataset
+	reference = reference_datasets
 )
 
 seurat_integrated <- IntegrateData(integration_anchors, normalization.method = "SCT")
@@ -154,12 +157,59 @@ pdf(file.path("results", "clustering", "cluster_tree.pdf"), height = 10, width =
 p
 dev.off()
 
-## Switch identity to a presumptive good clsutering resolution.
+## Switch identity to a presumptive good clustering resolution.
 
 Idents(seurat_integrated) <- "integrated_snn_res.0.8"
 
 ## UMAP dimension reduction for visualization.
 
-if (!dir.exists("tmpdir")) dir.create("tempdir")
+if (!dir.exists("tempdir")) dir.create("tempdir")
+set.tempdir("tempdir")
 
-seurat_integrated <- RunUMAP(seurat_integrated, dims = 1:30, tmpdir = "tmpdir")
+seurat_integrated <- RunUMAP(seurat_integrated, dims = 1:30)
+
+## Plot Clusters.
+
+p <- DimPlot(seurat_integrated, group.by = "ident", split.by = "orig.ident", ncol = 2)
+
+pdf(file.path("results", "clustering", "clusters.pdf"), height = 10, width = 10)
+p
+dev.off()
+
+## Export to Cerebro
+## ----------
+
+## Preparation steps for cerebro.
+
+seurat_cerebro <- addPercentMtRibo(
+	seurat_integrated, assay = "SCT", organism = "hg",
+	gene_nomenclature = "name"
+)
+
+seurat_cerebro <- getMostExpressedGenes(
+	seurat_cerebro, assay = "SCT", column_sample = "orig.ident",
+	column_cluster = "integrated_snn_res.0.8"
+)
+
+seurat_cerebro <- getMarkerGenes(
+	seurat_cerebro, assay = "RNA", column_sample = "orig.ident",
+	column_cluster = "integrated_snn_res.0.8", only_pos = FALSE,
+	organism = "hg"
+)
+
+seurat_cerebro <- getEnrichedPathways(
+	seurat_cerebro, column_sample = "orig.ident",
+	column_cluster = "integrated_snn_res.0.8"
+)
+
+## Export cerebro object.
+
+if (!dir.exists(file.path("results", "cerebro"))) {
+	dir.create(file.path("results", "cerebro"))
+}
+
+exportFromSeurat(
+	seurat_cerebro, assay = "SCT", file = file.path("results", "cerebro", "cerebro.crb"),
+	experiment_name = "LSD1_KD", organism = "hg", column_sample = "orig.ident",
+	column_cluster = "integrated_snn_res.0.8"
+)

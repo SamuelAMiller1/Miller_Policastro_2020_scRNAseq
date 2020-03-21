@@ -15,7 +15,7 @@ conda update -n base -y -c defaults conda
 
 conda create -n seurat -y -c conda-forge -c bioconda -c defaults -c tdido \
 r-tidyverse r-devtools r-data.table r-seurat r-clustree \
-bioconductor-genomicranges bioconductor-genomicfeatures \
+r-biocmanager bioconductor-genomicranges bioconductor-genomicfeatures \
 bioconductor-rtracklayer
 
 ## Update environment.
@@ -25,3 +25,13 @@ conda update -n seurat -y -c conda-forge -c bioconda --all
 ## Clean up extra files.
 
 conda clean -y --all
+
+## Install unixtools and cerebro
+
+apt-get -y update
+apt-get -y install build-essential
+
+export PATH=/opt/conda/envs/seurat/bin/:$PATH
+
+R --slave -e "Sys.setenv(TAR='/bin/tar'); install.packages('unixtools',,'http://rforge.net/')"
+R --slave -e "Sys.setenv(TAR='/bin/tar'); BiocManager::install('romanhaa/cerebroApp')"
