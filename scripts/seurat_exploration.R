@@ -112,33 +112,58 @@ observed_counts <- map(cluster_counts, function(x) {
 	return(x)
 })
 
+## Merge back the observed cluster fractions with the cluster counts.
+
+merged <- map2(cluster_counts, observed_counts, function(x, y) {
+	obs <- y[, .(integrated_snn_res.0.8, obs_log2_frac_diff)]
+	setkey(obs, integrated_snn_res.0.8)
+
+	clusts <- copy(x)
+	setkey(clusts, integrated_snn_res.0.8)
+
+	clusts <- merge(clusts, obs)
+	return(clusts)
+})
+
 ## Get permutation cluster fractional differences.
 
-permuted_counts <- map(cluster_counts, function(x) {
-	perm_samples <- modelr::permute(x, n = 10, .id = "resample") %>%
+permuted_counts <- map(merged, function(x) {
+	perm_samples <- modelr::permute(x, n = 1000, .id = "resample") %>%
 		pull(perm) %>%
 		map(function(resample) {
 			resampled_data <- resample$data
 			resampled_data$condition <- resampled_data$condition[resample$idx]
 			
 			resampled_data <- resampled_data[,
-				.(count = .N), by = .(condition, integrated_snn_res.0.8)
+				.(count = .N),
+				by = .(condition, integrated_snn_res.0.8, obs_log2_frac_diff)
 			]
 			resampled_data[, fraction := count / sum(count), by = condition]
 			resampled_data <- dcast(
-				resampled_data, integrated_snn_res.0.8 ~ condition,
+				resampled_data, integrated_snn_res.0.8 + obs_log2_frac_diff ~ condition,
 				value.var = "fraction"
 			)
 			resampled_data[, sim_log2_frac_diff := log2(LSD1_KD) - log2(EV)]
-			resampled_data[, c("EV", "LSD1_KD") := NULL]
+			resampled_data[, conditional := case_when(
+				obs_log2_frac_diff > 0 & sim_log2_frac_diff >= obs_log2_frac_diff ~ TRUE,
+				obs_log2_frac_diff < 0 & sim_log2_frac_diff <= obs_log2_frac_diff ~ TRUE,
+				TRUE ~ FALSE
+			)]
+			resampled_data[, c(
+				"EV", "LSD1_KD", "obs_log2_frac_diff", "sim_log2_frac_diff"
+			) := NULL]
 
 			return(resampled_data)
 		})
 	perm_samples <- rbindlist(perm_samples, idcol = "resample")
 	perm_samples <- dcast(
 		perm_samples, integrated_snn_res.0.8 ~ resample,
-		value.var = "sim_log2_frac_diff"
+		value.var = "conditional"
 	)
+	perm_samples <- perm_samples %>%
+		column_to_rownames("integrated_snn_res.0.8") %>%
+		as.matrix %>%
+		{rowSums(.) / ncol(.)}
 
 	return(perm_samples)
 })
