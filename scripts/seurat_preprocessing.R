@@ -8,7 +8,6 @@
 ## Libraries
 
 library("Seurat")
-library("data.table")
 library("tidyverse")
 library("clustree")
 library("future")
@@ -175,6 +174,11 @@ p <- DimPlot(seurat_integrated, group.by = "ident", split.by = "orig.ident", nco
 pdf(file.path("results", "clustering", "clusters.pdf"), height = 10, width = 10)
 p
 dev.off()
+
+## Save Integrated Data
+## ----------
+
+saveRDS("seurat_integrated", integrated.RDS)
 
 ## Export to Cerebro
 ## ----------
