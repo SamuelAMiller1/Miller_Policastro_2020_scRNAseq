@@ -128,11 +128,11 @@ merged <- map2(cluster_counts, observed_counts, function(x, y) {
 ## Get permutation cluster fractional differences.
 
 permuted_counts <- map(merged, function(x) {
-	perm_samples <- modelr::permute(x, n = 1000, .id = "resample") %>%
+	perm_samples <- modelr::permute(x, n = 10000, .id = "resample") %>%
 		pull(perm) %>%
 		map(function(resample) {
 			resampled_data <- resample$data
-			resampled_data$condition <- resampled_data$condition[resample$idx]
+			resampled_data[, condition := resampled_data$condition[resample$idx]]
 			
 			resampled_data <- resampled_data[,
 				.(count = .N),
@@ -160,10 +160,108 @@ permuted_counts <- map(merged, function(x) {
 		perm_samples, integrated_snn_res.0.8 ~ resample,
 		value.var = "conditional"
 	)
-	perm_samples <- perm_samples %>%
-		column_to_rownames("integrated_snn_res.0.8") %>%
-		as.matrix %>%
-		{rowSums(.) / ncol(.)}
+	perm_samples[,
+		pvalue := (rowSums(.SD) + 1) / ((ncol(perm_samples) - 1) + 1),
+		.SDcols = !"integrated_snn_res.0.8"
+	]
+	perm_samples <- perm_samples[, .(integrated_snn_res.0.8, pvalue)]
+	perm_samples[, FDR := p.adjust(pvalue, "fdr")]
 
 	return(perm_samples)
 })
+
+## Add p-values back to data.
+
+perm_results <- map2(observed_counts, permuted_counts, function(x, y) {
+	x <- setkey(x, integrated_snn_res.0.8)
+	y <- setkey(y, integrated_snn_res.0.8)
+
+	merged <- merge(x, y)
+	return(merged)
+})
+
+## Bootstrap fraction difference.
+
+boot_counts <- map(cluster_counts, function(x) {
+	x <- split(x, x$condition)
+	x <- map(x, function(y) {
+		resampled_data <- modelr::bootstrap(y, n = 10000, id = "resample") %>%
+			pull(strap) %>%
+			map(function(resample) {
+				resampled_data <- resample$data
+				resampled_data <- resampled_data[resample$idx, ]
+				resampled_data <- resampled_data[,
+					.(count = .N), by = integrated_snn_res.0.8
+				]
+			})
+		resampled_data <- rbindlist(resampled_data, idcol = "resample")
+		resampled_data[, fraction := count / sum(count), by = resample]
+		resampled_data[, count := NULL]
+	})
+	x <- rbindlist(x, idcol = "condition")
+	x <- dcast(
+		x, resample + integrated_snn_res.0.8 ~ condition,
+		value.var = "fraction", fill = 0
+	)
+	x[, sim_log2_frac_diff := log2(LSD1_KD) - log2(EV)]
+	x[, c("EV", "LSD1_KD") := NULL]
+	x <- dcast(x, integrated_snn_res.0.8 ~ resample, value.var = "sim_log2_frac_diff")
+
+	x[,
+		c("boot_mean", "boot_lower_ci", "boot_upper_ci") := list(
+			rowMeans(.SD),
+			apply(.SD, 1, function(x) {
+				x <- quantile(x, probs = 0.05)
+				x <- as.numeric(x)
+				return(x)
+			}),
+			apply(.SD, 1, function(x) {
+				x <- quantile(x, probs = 0.95)
+				x <- as.numeric(x)
+				return(x)
+			})
+		),
+		.SDcols = !"integrated_snn_res.0.8"
+	]
+	x <- x[, .(integrated_snn_res.0.8, boot_mean, boot_lower_ci, boot_upper_ci)]
+	return(x)
+})
+
+## Add boostrap back to data.
+
+boot_results <- map2(perm_results, boot_counts, function(x, y) {
+	x <- setkey(x, integrated_snn_res.0.8)
+	y <- setkey(y, integrated_snn_res.0.8)
+
+	merged <- merge(x, y)
+	return(merged)
+})
+
+## Export permutation and bootstrap results.
+
+if (!dir.exists(file.path("results", "cluster_counts"))) {
+	dir.create(file.path("results", "cluster_counts"))
+}
+
+write.table(
+	boot_results, file.path("results", "cluster_counts", "cluster_counts_table.tsv"),
+	sep = "\t", col.names = TRUE, row.names = FALSE, quote = FALSE
+)
+
+## Make cluster counts figure.
+
+plot_results <- rbindlist(boot_results, idcol = "line")
+plot_results[, integrated_snn_res.0.8 := fct_reorder(integrated_snn_res.0.8, boot_mean, .desc = TRUE)]
+plot_results[, significant := ifelse(FDR < 0.05, "FDR < 0.05", "n.s.")]
+
+p <- ggplot(plot_results, aes(x = integrated_snn_res.0.8, y = boot_mean, color = significant)) +
+	geom_pointrange(aes(ymin = boot_lower_ci, ymax = boot_upper_ci)) +
+	geom_hline(yintercept = 0, lty = 2) +
+	scale_color_manual(values = c(cell_cycle_palette[3], "grey")) +
+	theme_bw() +
+	coord_flip() +
+	facet_wrap(line ~ ., ncol = 1, scales = "free")
+
+pdf(file.path("results", "cluster_counts", "cluster_counts_pointrange.pdf"), height = 8, width = 6)
+p
+dev.off()
