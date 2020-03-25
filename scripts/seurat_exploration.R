@@ -26,8 +26,9 @@ plan("multiprocess", workers = 2)
 
 seurat_integrated <- readRDS("integrated.RDS")
 
-## Cell Cycle
-## ----------
+################
+## Cell Cycle ##
+################
 
 if (!dir.exists(file.path("results", "cell_cycle"))) {
 	dir.create(file.path("results", "cell_cycle"))
@@ -85,8 +86,9 @@ pdf(file.path("results", "cell_cycle", "cell_cycle_by_sample_and_cluster.pdf"), 
 p
 dev.off()
 
-## Cluster Cell Counts
-## ----------
+#########################
+## Cluster Cell Counts ##
+#########################
 
 ## Prepare data for cluster count analysis.
 
@@ -265,3 +267,13 @@ p <- ggplot(plot_results, aes(x = integrated_snn_res.0.8, y = boot_mean, color =
 pdf(file.path("results", "cluster_counts", "cluster_counts_pointrange.pdf"), height = 8, width = 6)
 p
 dev.off()
+
+##################
+## Marker Genes ##
+##################
+
+## Get marker genes for each cluster.
+
+markers <- FindAllMarkers(seurat_integrated, assay = "RNA", min.pct = 0.25)
+
+markers <- as.data.table(markers)
