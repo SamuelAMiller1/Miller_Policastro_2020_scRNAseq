@@ -11,6 +11,8 @@ library("tidyverse")
 library("data.table")
 library("future")
 library("wesanderson")
+library("uwot")
+library("dbscan")
 
 ###################################
 ## Exploration of scRNA-seq Data ##
@@ -105,19 +107,19 @@ exp_data <- merge(exp_data, meta_data, all.x = TRUE, by = "cell_id")[
 ## Classify the expression status of the cells.
 
 exp_data <- dcast(exp_data, cell_id + orig.ident ~ gene_id, value.var = "UMI_count")
-exp_data <- melt(
+plot_data <- melt(
 	exp_data, measure.vars = c("RCOR1", "RCOR2"),
 	variable.name = "RCOR_gene", value.name = "RCOR_exp"
 )
 
-exp_data[, DLL1_NEUROG3_status := case_when(
+plot_data[, DLL1_NEUROG3_status := case_when(
 	DLL1 == 0 & NEUROG3 == 0 ~ "DLL1(-)/NEUROG3(-)",
 	DLL1 > 0 & NEUROG3 == 0 ~ "DLL1(+)/NEUROG3(-)",
 	DLL1 == 0 & NEUROG3 > 0 ~ "DLL1(-)/NEUROG3(+)",
 	DLL1 > 0 & NEUROG3 > 0 ~ "DLL1(+)/NEUROG(+)"
 )]
 
-exp_data[,
+plot_data[,
 	DLL1_NEUROG3_status := factor(DLL1_NEUROG3_status, levels = c(
 		"DLL1(+)/NEUROG(+)", "DLL1(+)/NEUROG3(-)",
 		"DLL1(-)/NEUROG3(+)", "DLL1(-)/NEUROG3(-)"
@@ -126,7 +128,7 @@ exp_data[,
 
 ## Plot the expression values.
 
-p <- ggplot(exp_data, aes(x = DLL1_NEUROG3_status, y = RCOR_exp, fill = DLL1_NEUROG3_status)) +
+p <- ggplot(plot_data, aes(x = DLL1_NEUROG3_status, y = RCOR_exp, fill = DLL1_NEUROG3_status)) +
 	geom_jitter(size = 0.1, color = "grey", width = 0.25) +
 	geom_boxplot(outlier.shape = NA, width = 0.25) +
 	theme_bw() +
@@ -139,3 +141,10 @@ p <- ggplot(exp_data, aes(x = DLL1_NEUROG3_status, y = RCOR_exp, fill = DLL1_NEU
 
 DLL1_NEUROG3_file <- file.path("results", "gene_plots", "DLL1_NEUROG3_RCOR.pdf")
 pdf(DLL1_NEUROG3_file, height = 3, width = 8); p; dev.off()
+
+## UMAP.
+
+umap_data <- umap(exp_data, n_neighbors = 50, min_dist = 0, n_threads = 8, n_sgd_threads = 8)
+umap_data <- as.data.table(umap_data)
+setnames(umap_data, old = c(1, 2), new = c("UMAP_1", "UMAP_2"))
+umap_results <- cbind(exp_data, umap_data)
