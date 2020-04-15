@@ -1,6 +1,7 @@
+
 ## Load singularity container.
 ##
-## singularity shell -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_seurat_3.1.4.sif
+## singularity shell -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_seurat_velocytor_0.2.sif
 ##
 ## . /opt/conda/etc/profile.d/conda.sh
 ## conda activate seurat; R
@@ -13,6 +14,8 @@ library("clustree")
 library("future")
 library("unixtools")
 library("cerebroApp")
+library("SeuratWrappers")
+library("velocyto.R")
 
 ##########################
 ## Seurat Analysis LSD1 ##
@@ -31,22 +34,18 @@ if (!dir.exists("results")) dir.create("results")
 ## Samples to analyze.
 
 samples <- list(
-	COLON_1 = file.path("aligned", "COLON_1", "outs", "filtered_feature_bc_matrix"),
-	HT29_EV = file.path("aligned", "HT29_EV", "outs", "filtered_feature_bc_matrix"),
-	HT29_LSD1_KD = file.path("aligned", "HT29_LSD1_KD", "outs", "filtered_feature_bc_matrix"),
-	H508_EV = file.path("aligned", "H508_EV", "outs", "filtered_feature_bc_matrix"),
-	H508_LSD1_KD = file.path("aligned", "H508_LSD1_KD", "outs", "filtered_feature_bc_matrix")
+	COLON_1 = file.path("velocity", "COLON_1.loom"),
+	H508_EV = file.path("velocity", "H508_EV.loom")
 )
 
-## Read 10X data.
+## Read in data.
 
-data_10X <- map(samples, ~ Read10X(.))
+data_velocyto <- map(samples, ReadVelocity)
 
 ## Convert to seurat object.
 
-seurat_obj <- imap(data_10X, ~ CreateSeuratObject(
-	counts = .x, project = .y, min.cells = 10, min.features = 250
-))
+seurat_obj <- map(data_velocyto, as.Seurat)
+seurat_obj <- map(seurat_obj, function(x) {DefaultAssay(x) <- "spliced"})
 
 ## Cell Quality Control
 ## ----------
@@ -54,11 +53,9 @@ seurat_obj <- imap(data_10X, ~ CreateSeuratObject(
 ## Add mitochondrial percentage.
 
 seurat_obj <- map(seurat_obj, function(x) {
-	x[["percent.mt"]] <- PercentageFeatureSet(x, "^MT-")
+	x[["percent_mt_spliced"]] <- PercentageFeatureSet(x, "^MT-")
 	return(x)
 })
-
-## Plot mitochondrial percentage versus feature counts.
 
 mt_data <- map(seurat_obj, function(x) {
 	meta_data <- x@meta.data
@@ -68,7 +65,7 @@ mt_data <- map(seurat_obj, function(x) {
 
 mt_data <- bind_rows(mt_data)
 
-p <- ggplot(mt_data, aes(x = percent.mt, y = nFeature_RNA)) +
+p <- ggplot(mt_data, aes(x = percent_mt_spliced, y = nFeature_spliced)) +
 	geom_point(size = 0.1) +
 	facet_wrap(. ~ orig.ident, ncol = 3, scales = "free")
 
@@ -76,7 +73,9 @@ if (!dir.exists(file.path("results", "preprocessing"))) {
 	dir.create(file.path("results", "preprocessing"))
 }
 
-pdf(file.path("results", "preprocessing", "mt_content.pdf"), height = 8, width = 10)
+## Plot mitochondrial percentage versus feature counts.
+
+pdf(file.path("results", "preprocessing", "mt_content_spliced.pdf"), height = 8, width = 10)
 p
 dev.off()
 
@@ -84,20 +83,10 @@ dev.off()
 
 seurat_obj <- imap(seurat_obj, function(x, y) {
 	if (y == "COLON_1") {
-		x <- subset(x, subset = percent.mt <= 25 & nFeature_RNA >= 1000)
+		x <- subset(x, subset = percent_mt_spliced <= 25 & nFeature_spliced >= 1000)
 	} else {
-		x <- subset(x, subset = percent.mt <= 25 & nFeature_RNA >= 2500)
+		x <- subset(x, subset = percent_mt_spliced <= 25 & nFeature_spliced >= 2500)
 	}
-})
-
-## Add cell-cycle scores.
-
-seurat_obj <- map(seurat_obj, function(x) {
-	x <- CellCycleScoring(
-		x, s.features = cc.genes$s.genes, g2m.features = cc.genes$g2m.genes,
-		set.ident = TRUE
-	)
-	return(x)
 })
 
 ## Integrating Data
@@ -105,7 +94,7 @@ seurat_obj <- map(seurat_obj, function(x) {
 
 ## SCTransform to normalize data.
 
-seurat_obj <- map(seurat_obj, SCTransform)
+seurat_obj <- map(seurat_obj, ~ SCTransform(., assay = "spliced"))
 
 ## Prepare for integration.
 
@@ -116,7 +105,7 @@ seurat_obj <- PrepSCTIntegration(seurat_obj, anchor.features = integration_featu
 
 ## Integrate the reference dataset.
 
-reference_datasets <- which(names(seurat_obj) %in% c("COLON_1", "HT29_EV", "H508_EV"))
+reference_datasets <- which(names(seurat_obj) %in% c("HT29_EV", "H508_EV"))
 integration_anchors <- FindIntegrationAnchors(
 	seurat_obj, normalization.method = "SCT", anchor.features = integration_features,
 	reference = reference_datasets
@@ -136,10 +125,10 @@ seurat_integrated <- RunPCA(seurat_integrated, npcs = 100)
 p <- ElbowPlot(seurat_integrated, ndims = 100)
 
 if (!dir.exists(file.path("results", "clustering"))) {
-	dir.create(file.path("results", "clustering"))
+        dir.create(file.path("results", "clustering"))
 }
 
-pdf(file.path("results", "clustering", "pca_elbow_plot.pdf"), height = 5, width = 5)
+pdf(file.path("results", "clustering", "pca_elbow_plot_spliced.pdf"), height = 5, width = 5)
 p
 dev.off()
 
@@ -152,7 +141,7 @@ seurat_integrated <- FindClusters(seurat_integrated, resolution = seq(0.2, 2.0, 
 
 p <- clustree(seurat_integrated, prefix = "integrated_snn_res.")
 
-pdf(file.path("results", "clustering", "cluster_tree.pdf"), height = 10, width = 10)
+pdf(file.path("results", "clustering", "cluster_tree_spliced.pdf"), height = 10, width = 10)
 p
 dev.off()
 
@@ -171,51 +160,21 @@ seurat_integrated <- RunUMAP(seurat_integrated, dims = 1:30)
 
 p <- DimPlot(seurat_integrated, group.by = "ident", split.by = "orig.ident", ncol = 2)
 
-pdf(file.path("results", "clustering", "clusters.pdf"), height = 10, width = 10)
+pdf(file.path("results", "clustering", "clusters_spliced.pdf"), height = 6, width = 10)
 p
 dev.off()
+
+## RNA Velocity
+## ----------
+
+seurat_integrated <- RunVelocity(
+	seurat_integrated, ambiguous = "ambiguous", ncores = 8,
+	deltaT = 1, kCells = 25, fit.quantile = 0.02
+)
 
 ## Save Integrated Data
 ## ----------
 
-saveRDS(seurat_integrated, "integrated.RDS")
+saveRDS(seurat_integrated, "integrated_spliced.RDS")
 
-## Export to Cerebro
-## ----------
 
-## Preparation steps for cerebro.
-
-seurat_cerebro <- addPercentMtRibo(
-	seurat_integrated, assay = "SCT", organism = "hg",
-	gene_nomenclature = "name"
-)
-
-seurat_cerebro <- getMostExpressedGenes(
-	seurat_cerebro, assay = "SCT", column_sample = "orig.ident",
-	column_cluster = "integrated_snn_res.0.8"
-)
-
-seurat_cerebro <- getMarkerGenes(
-	seurat_cerebro, assay = "RNA", column_sample = "orig.ident",
-	column_cluster = "integrated_snn_res.0.8", only_pos = FALSE,
-	organism = "hg"
-)
-
-seurat_cerebro <- getEnrichedPathways(
-	seurat_cerebro, column_sample = "orig.ident",
-	column_cluster = "integrated_snn_res.0.8"
-)
-
-## Export cerebro object.
-
-if (!dir.exists(file.path("results", "cerebro"))) {
-	dir.create(file.path("results", "cerebro"))
-}
-
-exportFromSeurat(
-	seurat_cerebro, assay = "SCT", file = file.path("results", "cerebro", "cerebro.crb"),
-	experiment_name = "LSD1_KD", organism = "hg", column_sample = "orig.ident",
-	column_cluster = "integrated_snn_res.0.8", column_nUMI = "nCount_RNA",
-	column_nGene = "nFeature_RNA", column_cell_cycle_seurat = "Phase"
-)
-)
