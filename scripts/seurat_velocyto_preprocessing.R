@@ -172,7 +172,7 @@ dev.off()
 ## ----------
 
 seurat_integrated <- RunVelocity(
-	seurat_integrated, ambiguous = "ambiguous", ncores = 8,
+	seurat_integrated, ambiguous = "ambiguous", ncores = 1,
 	deltaT = 1, kCells = 25, fit.quantile = 0.02
 )
 
