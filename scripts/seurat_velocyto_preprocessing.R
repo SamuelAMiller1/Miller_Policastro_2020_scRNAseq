@@ -24,7 +24,7 @@ library("velocyto.R")
 setwd("..")
 
 options(future.globals.maxSize = 10000 * 1024 ^2)
-plan("multiprocess", workers = 2)
+plan("multiprocess", workers = 3)
 
 if (!dir.exists("results")) dir.create("results")
 
@@ -35,7 +35,10 @@ if (!dir.exists("results")) dir.create("results")
 
 samples <- list(
 	COLON_1 = file.path("velocity", "COLON_1.loom"),
-	H508_EV = file.path("velocity", "H508_EV.loom")
+	H508_EV = file.path("velocity", "H508_EV.loom"),
+	H508_LSD1_KD = file.path("velocity", "H508_LSD1_KD.loom"),
+	HT29_EV = file.path("velocity", "HT29_EV.loom"),
+	HT29_LSD1_KD = file.path("velocity", "HT29_LSD1_KD.loom")
 )
 
 ## Read in data.
@@ -45,7 +48,10 @@ data_velocyto <- map(samples, ReadVelocity)
 ## Convert to seurat object.
 
 seurat_obj <- map(data_velocyto, as.Seurat)
-seurat_obj <- map(seurat_obj, function(x) {DefaultAssay(x) <- "spliced"})
+seurat_obj <- imap(seurat_obj, function(x, y) {
+	x@meta.data$orig.ident <- y
+	return(x)
+})
 
 ## Cell Quality Control
 ## ----------
@@ -97,8 +103,6 @@ seurat_obj <- imap(seurat_obj, function(x, y) {
 seurat_obj <- map(seurat_obj, ~ SCTransform(., assay = "spliced"))
 
 ## Prepare for integration.
-
-options(future.globals.maxSize = 10000 * 1024 ^2)
 
 integration_features <- SelectIntegrationFeatures(seurat_obj, nfeatures = 3000)
 seurat_obj <- PrepSCTIntegration(seurat_obj, anchor.features = integration_features)

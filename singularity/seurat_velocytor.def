@@ -14,7 +14,7 @@ conda update -n base -y -c defaults conda
 ## Install required software.
 
 conda create -n seurat -y -c conda-forge -c bioconda -c defaults -c tdido \
-boost python-igraph hdf5 \
+boost python-igraph hdf5 openmpi openblas \
 r-tidyverse r-devtools r-data.table r-seurat r-clustree r-wesanderson r-biocmanager \
 bioconductor-genomicranges bioconductor-genomicfeatures bioconductor-rtracklayer \
 bioconductor-pcamethods
@@ -27,10 +27,10 @@ conda update -n seurat -y -c conda-forge -c bioconda --all
 
 conda clean -y --all
 
-## Install unixtools and cerebro
+## Install unixtools, cerebro, seurat wrappers, and velocyto.R
 
 apt-get -y update
-apt-get -y install build-essential libopenmpi-dev openmpi-bin
+apt-get -y install build-essential git-all
 
 export PATH=/opt/conda/envs/seurat/bin/:$PATH
 
