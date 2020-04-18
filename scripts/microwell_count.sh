@@ -133,7 +133,7 @@ done
 
 for sample in ${samples[@]}; do
   singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
-  FitlerBam \
+  FilterBam \
     TAG_REJECT=XQ \
     INPUT=aligned/${sample}/unaligned_${sample}_cellbc_umi.bam \
     OUTPUT=aligned/${sample}/unaligned_${sample}_filtered.bam
@@ -194,8 +194,50 @@ for sample in ${samples[@]}; do
     --runThreadN $ncores \
     --genomeDir microwell_meta_data/star_index \
     --readFilesIn aligned/${sample}/unaligned_${sample}_filtered.fastq \
-    --outFileNamePrefix aligned/${sample}/${sample} \
-    --outSAMtype BAM SortedByCoordinate
+    --outFileNamePrefix aligned/${sample}/${sample}
 done
 
+## Sort SAM files by queryname and turn to BAM.
 
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  picard SortSam \
+    I=aligned/${sample}/${sample}_ \
+    O=aligned/${sample}/aligned_${sample}_sorted.bam
+done
+
+## Merge back the barcode information.
+
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  picard MergeBamAlignment \
+    REFERENCE_SEQUENCE=genome/refdata-cellranger-GRCh38-3.0.0/fasta/genome.fa \
+    UNMAPPED_BAM=aligned/${sample}/unaligned_${sample}_adapter_polya_trimmed.bam \
+    ALIGNED_BAM=aligned/${sample}/aligned_${sample}_sorted.bam \
+    OUTPUT=aligned/${sample}/aligned_${sample}_merged.bam \
+    INCLUDE_SECONDARY_ALIGNMENTS=false \
+    PAIRED_RUN=false
+done
+
+## Detect bead substitution errors.
+
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  DetectBeadSubstitutionErrors \
+    I=aligned/${sample}/aligned_${sample}_merged.bam \
+    O=aligned/${sample}/aligned_${sample}_bead_substitution.bam \
+    OUTPUT_REPORT=aligned/${sample}/aligned_${sample}_bead_substitution.bam_summary.txt
+done
+
+## Detect bead synthesis errors.
+
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  DetectBeadSynthesisErrors \
+    I=aligned/${sample}/aligned_${sample}_bead_substitution.bam \
+    O=aligned/${sample}/aligned_${sample}_clean.bam \
+    REPORT=aligned/${sample}/aligned_${sample}_clean.bam_report.txt \
+    OUTPUT_STATS=aligned/${sample}/aligned_${sample}_clean.bam_stats.txt \
+    SUMMARY=aligned/${sample}/aligned_${sample}_clean.bam_summary.txt \
+    PRIMER_SEQUENCE=AAGCAGTGGTATCAACGCAGAGTAC
+done
