@@ -1,0 +1,201 @@
+#!/bin/bash
+
+## Variables
+
+container=scrnaseq_software_drop_seq_2.3.0.sif
+ncores=8
+
+########################################
+## Microwell-seq Human Cell Landscape ##
+########################################
+
+## Preparation Steps
+## ----------
+
+## Activate singularity on HPC.
+
+module load singularity/3.5.2
+
+## Download singularity container.
+
+if [ ! -f ${container} ]; then
+   singularity pull --arch amd64 library://rpolicastro/default/scrnaseq_software:drop_seq_2.3.0
+fi
+
+## Download 10X hg38 genome.
+
+if [ ! -d genome ]; then
+   mkdir -p genome
+fi
+
+if [ ! -d genome/refdata-cellranger-GRCh38-3.0.0 ]; then
+   cd genome
+   wget http://cf.10xgenomics.com/supp/cell-exp/refdata-cellranger-GRCh38-3.0.0.tar.gz
+   tar -xzvf refdata-cellranger-GRCh38-3.0.0.tar.gz
+   cd ..
+fi
+
+## Analysis of Microwell-seq Data
+## ----------
+
+## Create sequence dictionary from genome assembly.
+
+if [ ! -f microwell_meta_data ]; then
+ mkdir -p microwell_meta_data
+fi
+
+singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+picard CreateSequenceDictionary \
+  R=genome/refdata-cellranger-GRCh38-3.0.0/fasta/genome.fa \
+  O=microwell_meta_data/genome.dict \
+  SPECIES=Homo_sapiens
+
+## Convert genome annotation to RefFlat.
+
+singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+ConvertToRefFlat \
+  ANNOTATIONS_FILE=genome/refdata-cellranger-GRCh38-3.0.0/genes/genes.gtf \
+  SEQUENCE_DICTIONARY=microwell_meta_data/genome.dict \
+  OUTPUT=microwell_meta_data/genome.refFlat
+
+## Convert fastq files to unaligned BAM.
+
+samples=(ascending_colon transverse_colon sigmoid_colon)
+
+for sample in ${samples[@]}; do
+  if [ ! -f aligned/$sample ]; then
+    mkdir -p aligned/$sample
+  fi
+done
+
+mkdir -p tempdir
+
+# Ascending colon.
+singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+picard FastqToSam \
+  F1=sequences/ascending_colon/SRR9843410_1.fastq \
+  F2=sequences/ascending_colon/SRR9843410_2.fastq \
+  O=aligned/ascending_colon/unaligned_ascending_colon.bam \
+  SAMPLE_NAME=ascending_colon \
+  TMP_DIR=tempdir
+
+# Sigmoid colon.
+singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+picard FastqToSam \
+  F1=sequences/sigmoid_colon/SRR9887686_1.fastq \
+  F2=sequences/sigmoid_colon/SRR9887686_2.fastq \
+  O=aligned/sigmoid_colon/unaligned_sigmoid_colon.bam \
+  SAMPLE_NAME=sigmoid_colon \
+  TMP_DIR=tempdir
+
+# Transverse colon.
+singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+picard FastqToSam \
+  F1=sequences/transverse_colon/SRR9887678_1.fastq \
+  F2=sequences/transverse_colon/SRR9887678_2.fastq \
+  O=aligned/transverse_colon/unaligned_transverse_colon.bam \
+  SAMPLE_NAME=transverse_colon \
+  TMP_DIR=tempdir
+
+## Extract cell barcode.
+
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  TagBamWithReadSequenceExtended \
+    INPUT=aligned/${sample}/unaligned_${sample}.bam \
+    OUTPUT=aligned/${sample}/unaligned_${sample}_cellbc.bam \
+    SUMMARY=aligned/${sample}/unaligned_${sample}_cellbc.bam_summary.txt \
+    BASE_RANGE=1-12 \
+    BASE_QUALITY=10 \
+    BARCODED_READ=1 \
+    DISCARD_READ=False \
+    TAG_NAME=XC \
+    NUM_BASES_BELOW_QUALITY=1
+done
+
+## Extract UMI.
+
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  TagBamWithReadSequenceExtended \
+    INPUT=aligned/${sample}/unaligned_${sample}_cellbc.bam \
+    OUTPUT=aligned/${sample}/unaligned_${sample}_cellbc_umi.bam \
+    SUMMARY=aligned/${sample}/unaligned_${sample}_cellbc_umi.bam_summary.txt \
+    BASE_RANGE=13-20 \
+    BASE_QUALITY=10 \
+    BARCODED_READ=1 \
+    DISCARD_READ=True \
+    TAG_NAME=XM \
+    NUM_BASES_BELOW_QUALITY=1
+done
+
+## Remove reads with low cell or UMI barcode quality.
+
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  FitlerBam \
+    TAG_REJECT=XQ \
+    INPUT=aligned/${sample}/unaligned_${sample}_cellbc_umi.bam \
+    OUTPUT=aligned/${sample}/unaligned_${sample}_filtered.bam
+done
+
+## Trim barcodes from reads.
+
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  TrimStartingSequence \
+    INPUT=aligned/${sample}/unaligned_${sample}_filtered.bam \
+    OUTPUT=aligned/${sample}/unaligned_${sample}_adapter_trimmed.bam \
+    OUTPUT_SUMMARY=aligned/${sample}/unaligned_${sample}_adapter_trimmed.bam_summary.txt \
+    SEQUENCE=AAGCAGTGGTATCAACGCAGAGTGAATGGG \
+    MISMATCHES=0 \
+    NUM_BASES=5
+done
+
+## Trim polyA tails from reads.
+
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  PolyATrimmer \
+    INPUT=aligned/${sample}/unaligned_${sample}_adapter_trimmed.bam \
+    OUPUT=aligned/${sample}/unaligned_${sample}_adapter_polya_trimmed.bam \
+    OUTPUT_SUMMARY=${workdir}/aligned/${sample}/unaligned_${sample}_adapter_polya_trimmed.bam_summary.txt \
+    MISMATCHES=0 \
+    NUM_BASES=6 \
+    USE_NEW_TRIMMER=true
+done
+
+## Convert SAM files back to FASTQ for alignment.
+
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  picard SamToFastq \
+    INPUT=aligned/${sample}/unaligned_${sample}_adapter_polya_trimmed.bam \
+    FASTQ=aligned/${sample}/unaligned_${sample}_filtered.fastq
+
+## Create STAR genome index.
+
+mkdir -p microwell_meta_data/star_index
+
+singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+STAR \
+  --runThreadN $ncores \
+  --runMode genomeGenerate \
+  --genomeDir microwell_meta_data/star_index \
+  --genomeFastaFile refdata-cellranger-GRCh38-3.0.0/fasta/genome.fa \
+  --sjdbGTFfile refdata-cellranger-GRCh38-3.0.0/genes/genes.fa
+done
+
+## Align reads with STAR.
+
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  STAR \
+    --runThreadN $ncores \
+    --genomeDir microwell_meta_data/star_index \
+    --readFilesIn aligned/${sample}/unaligned_${sample}_filtered.fastq \
+    --outFileNamePrefix aligned/${sample}/${sample} \
+    --outSAMtype BAM SortedByCoordinate
+done
+
+

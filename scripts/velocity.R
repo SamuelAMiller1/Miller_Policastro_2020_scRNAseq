@@ -33,7 +33,7 @@ names(x = cell.colors) <- colnames(x = seurat_integrated)
 
 p <- show.velocity.on.embedding.cor(
 	emb = Embeddings(object = seurat_integrated, reduction = "umap"),
-	vel = Tool(object = seurat_integrated, slot = "RunVelocity"), n = 200, scale = "sqrt",
+	vel = Tool(object = seurat_integrated, slot = "RunVelocity"), n = 100, scale = "sqrt",
 	cell.colors = ac(x = cell.colors, alpha = 0.5), cex = 0.8, arrow.scale = 3,
 	show.grid.flow = TRUE, min.grid.cell.mass = 0.5, grid.n = 40, arrow.lwd = 1, 
 	do.par = FALSE, cell.border.alpha = 0.1

@@ -1,0 +1,37 @@
+
+bootstrap: docker
+From: continuumio/miniconda3
+
+%post
+
+## Allow conda to run.
+
+. /opt/conda/etc/profile.d/conda.sh
+
+## Update conda.
+
+conda update -n base -y -c defaults conda
+
+## Install required software.
+
+conda create -n microwell -y -c conda-forge -c bioconda \
+star picard java-jdk sra-tools
+
+## Update environment.
+
+conda update -n microwell -y -c conda-forge -c bioconda --all
+
+## Clean up extra files.
+
+conda clean -y --all
+
+apt-get -y update
+apt-get -y install wget unzip
+
+wget https://github.com/broadinstitute/Drop-seq/releases/download/v2.3.0/Drop-seq_tools-2.3.0.zip
+unzip Drop-seq_tools-2.3.0.zip
+
+%environment
+
+export PATH=/opt/conda/envs/microwell/bin/:$PATH
+export PATH=$PATH:/Drop-seq_tools-2.3.0/
