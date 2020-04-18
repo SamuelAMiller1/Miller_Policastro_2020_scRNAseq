@@ -158,7 +158,7 @@ for sample in ${samples[@]}; do
   singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
   PolyATrimmer \
     INPUT=aligned/${sample}/unaligned_${sample}_adapter_trimmed.bam \
-    OUPUT=aligned/${sample}/unaligned_${sample}_adapter_polya_trimmed.bam \
+    OUTPUT=aligned/${sample}/unaligned_${sample}_adapter_polya_trimmed.bam \
     OUTPUT_SUMMARY=${workdir}/aligned/${sample}/unaligned_${sample}_adapter_polya_trimmed.bam_summary.txt \
     MISMATCHES=0 \
     NUM_BASES=6 \
