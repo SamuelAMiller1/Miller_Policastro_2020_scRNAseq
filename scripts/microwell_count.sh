@@ -159,7 +159,7 @@ for sample in ${samples[@]}; do
   PolyATrimmer \
     INPUT=aligned/${sample}/unaligned_${sample}_adapter_trimmed.bam \
     OUTPUT=aligned/${sample}/unaligned_${sample}_adapter_polya_trimmed.bam \
-    OUTPUT_SUMMARY=${workdir}/aligned/${sample}/unaligned_${sample}_adapter_polya_trimmed.bam_summary.txt \
+    OUTPUT_SUMMARY=aligned/${sample}/unaligned_${sample}_adapter_polya_trimmed.bam_summary.txt \
     MISMATCHES=0 \
     NUM_BASES=6 \
     USE_NEW_TRIMMER=true
