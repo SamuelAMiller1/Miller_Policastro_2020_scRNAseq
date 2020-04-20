@@ -40,7 +40,7 @@ fi
 
 ## Create sequence dictionary from genome assembly.
 
-if [ ! -f microwell_meta_data ]; then
+if [ ! -d microwell_meta_data ]; then
  mkdir -p microwell_meta_data
 fi
 
@@ -63,7 +63,7 @@ ConvertToRefFlat \
 samples=(ascending_colon transverse_colon sigmoid_colon)
 
 for sample in ${samples[@]}; do
-  if [ ! -f aligned/$sample ]; then
+  if [ ! -d aligned/$sample ]; then
     mkdir -p aligned/$sample
   fi
 done
@@ -172,6 +172,7 @@ for sample in ${samples[@]}; do
   picard SamToFastq \
     INPUT=aligned/${sample}/unaligned_${sample}_adapter_polya_trimmed.bam \
     FASTQ=aligned/${sample}/unaligned_${sample}_filtered.fastq
+done
 
 ## Create STAR genome index.
 
@@ -182,9 +183,8 @@ STAR \
   --runThreadN $ncores \
   --runMode genomeGenerate \
   --genomeDir microwell_meta_data/star_index \
-  --genomeFastaFile refdata-cellranger-GRCh38-3.0.0/fasta/genome.fa \
-  --sjdbGTFfile refdata-cellranger-GRCh38-3.0.0/genes/genes.fa
-done
+  --genomeFastaFiles genome/refdata-cellranger-GRCh38-3.0.0/fasta/genome.fa \
+  --sjdbGTFfile genome/refdata-cellranger-GRCh38-3.0.0/genes/genes.gtf
 
 ## Align reads with STAR.
 
