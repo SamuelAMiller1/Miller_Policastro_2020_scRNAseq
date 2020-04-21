@@ -9,12 +9,13 @@ ncores=8
 ## Microwell-seq Human Cell Landscape ##
 ########################################
 
+cd $PBS_O_WORKDIR
+cd ..
+
+module load singularity
+
 ## Preparation Steps
 ## ----------
-
-## Activate singularity on HPC.
-
-module load singularity/3.5.2
 
 ## Download singularity container.
 
@@ -105,7 +106,7 @@ for sample in ${samples[@]}; do
     INPUT=aligned/${sample}/unaligned_${sample}.bam \
     OUTPUT=aligned/${sample}/unaligned_${sample}_cellbc.bam \
     SUMMARY=aligned/${sample}/unaligned_${sample}_cellbc.bam_summary.txt \
-    BASE_RANGE=1-12 \
+    BASE_RANGE=1-6:22-27:43-48 \
     BASE_QUALITY=10 \
     BARCODED_READ=1 \
     DISCARD_READ=False \
@@ -121,7 +122,7 @@ for sample in ${samples[@]}; do
     INPUT=aligned/${sample}/unaligned_${sample}_cellbc.bam \
     OUTPUT=aligned/${sample}/unaligned_${sample}_cellbc_umi.bam \
     SUMMARY=aligned/${sample}/unaligned_${sample}_cellbc_umi.bam_summary.txt \
-    BASE_RANGE=13-20 \
+    BASE_RANGE=49-54 \
     BASE_QUALITY=10 \
     BARCODED_READ=1 \
     DISCARD_READ=True \
@@ -202,8 +203,10 @@ done
 for sample in ${samples[@]}; do
   singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
   picard SortSam \
-    I=aligned/${sample}/${sample}_ \
-    O=aligned/${sample}/aligned_${sample}_sorted.bam
+    I=aligned/${sample}/${sample}Aligned.out.sam \
+    O=aligned/${sample}/aligned_${sample}_sorted.bam \
+    SO=queryname \
+    TMP_DIR=tempdir
 done
 
 ## Merge back the barcode information.
@@ -216,7 +219,8 @@ for sample in ${samples[@]}; do
     ALIGNED_BAM=aligned/${sample}/aligned_${sample}_sorted.bam \
     OUTPUT=aligned/${sample}/aligned_${sample}_merged.bam \
     INCLUDE_SECONDARY_ALIGNMENTS=false \
-    PAIRED_RUN=false
+    PAIRED_RUN=false \
+    TMP_DIR=tempdir
 done
 
 ## Detect bead substitution errors.
@@ -226,7 +230,8 @@ for sample in ${samples[@]}; do
   DetectBeadSubstitutionErrors \
     I=aligned/${sample}/aligned_${sample}_merged.bam \
     O=aligned/${sample}/aligned_${sample}_bead_substitution.bam \
-    OUTPUT_REPORT=aligned/${sample}/aligned_${sample}_bead_substitution.bam_summary.txt
+    OUTPUT_REPORT=aligned/${sample}/aligned_${sample}_bead_substitution.bam_summary.txt \
+    NUM_THREADS=$ncores
 done
 
 ## Detect bead synthesis errors.
@@ -239,5 +244,6 @@ for sample in ${samples[@]}; do
     REPORT=aligned/${sample}/aligned_${sample}_clean.bam_report.txt \
     OUTPUT_STATS=aligned/${sample}/aligned_${sample}_clean.bam_stats.txt \
     SUMMARY=aligned/${sample}/aligned_${sample}_clean.bam_summary.txt \
-    PRIMER_SEQUENCE=AAGCAGTGGTATCAACGCAGAGTAC
+    PRIMER_SEQUENCE=AAGCAGTGGTATCAACGCAGAGTAC \
+    NUM_THREADS=$ncores
 done
