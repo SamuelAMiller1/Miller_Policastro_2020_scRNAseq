@@ -257,8 +257,7 @@ for sample in ${samples[@]}; do
   DigitalExpression \
     I=aligned/${sample}/aligned_${sample}_merged.bam \
     O=aligned/${sample}/${sample}_count_matrix.tsv \
-    CELL_BARCODE_TAG="XC" \
-    MOLECULAR_BARCODE_TAG="XM" \
-    NUM_CORE_BARCODES=5000 \
-    SUMMARY=aligned/${sample}/${sample}_count_matrix.tsv_summary.txt
+    MIN_NUM_GENES_PER_CELL=100 \
+    SUMMARY=aligned/${sample}/${sample}_count_matrix.tsv_summary.txt \
+    TMP_DIR=tempdir
 done
