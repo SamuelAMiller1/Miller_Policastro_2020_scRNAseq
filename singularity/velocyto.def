@@ -35,3 +35,7 @@ conda clean -y --all
 export PATH=/opt/conda/envs/velocyto/bin/:$PATH
 
 pip install velocyto
+
+%environment
+
+export PATH=/opt/conda/envs/velocyto/bin/:$PATH
