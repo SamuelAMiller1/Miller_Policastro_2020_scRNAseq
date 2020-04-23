@@ -4,6 +4,7 @@
 
 container=scrnaseq_software_drop_seq_2.3.0.sif
 ncores=8
+samples=(ascending_colon transverse_colon sigmoid_colon)
 
 ########################################
 ## Microwell-seq Human Cell Landscape ##
@@ -60,8 +61,6 @@ ConvertToRefFlat \
   OUTPUT=microwell_meta_data/genome.refFlat
 
 ## Convert fastq files to unaligned BAM.
-
-samples=(ascending_colon transverse_colon sigmoid_colon)
 
 for sample in ${samples[@]}; do
   if [ ! -d aligned/$sample ]; then
@@ -223,39 +222,50 @@ for sample in ${samples[@]}; do
     TMP_DIR=tempdir
 done
 
+## Tag read with gene exon.
+
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  TagReadWithGeneFunction \
+    I=aligned/${sample}/aligned_${sample}_merged.bam \
+    O=aligned/${sample}/aligned_${sample}_gene_tagged.bam \
+    ANNOTATIONS_FILE=genome/refdata-cellranger-GRCh38-3.0.0/genes/genes.gtf \
+    SUMMARY=aligned/${sample}/aligned_${sample}_gene_tagged.bam_summary.txt
+done
+
 ## Detect bead substitution errors.
 
-#for sample in ${samples[@]}; do
-#  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
-#  DetectBeadSubstitutionErrors \
-#    I=aligned/${sample}/aligned_${sample}_merged.bam \
-#    O=aligned/${sample}/aligned_${sample}_bead_substitution.bam \
-#    OUTPUT_REPORT=aligned/${sample}/aligned_${sample}_bead_substitution.bam_summary.txt \
-#    NUM_THREADS=$ncores
-#    CELL_BARCODE_TAG="XC:Z" \
-#    MOLECULAR_BARCODE_TAG="XM:Z"
-#done
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  DetectBeadSubstitutionErrors \
+    I=aligned/${sample}/aligned_${sample}_gene_tagged.bam \
+    O=aligned/${sample}/aligned_${sample}_bead_substitution.bam \
+    OUTPUT_REPORT=aligned/${sample}/aligned_${sample}_bead_substitution.bam_summary.txt \
+    NUM_THREADS=$ncores \
+    TMP_DIR=tempdir
+done
 
 ## Detect bead synthesis errors.
 
-#for sample in ${samples[@]}; do
-#  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
-#  DetectBeadSynthesisErrors \
-#    I=aligned/${sample}/aligned_${sample}_bead_substitution.bam \
-#    O=aligned/${sample}/aligned_${sample}_clean.bam \
-#    REPORT=aligned/${sample}/aligned_${sample}_clean.bam_report.txt \
-#    OUTPUT_STATS=aligned/${sample}/aligned_${sample}_clean.bam_stats.txt \
-#    SUMMARY=aligned/${sample}/aligned_${sample}_clean.bam_summary.txt \
-#    PRIMER_SEQUENCE=AAGCAGTGGTATCAACGCAGAGTAC \
-#    NUM_THREADS=$ncores
-#done
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  DetectBeadSynthesisErrors \
+    I=aligned/${sample}/aligned_${sample}_bead_substitution.bam \
+    O=aligned/${sample}/aligned_${sample}_clean.bam \
+    REPORT=aligned/${sample}/aligned_${sample}_clean.bam_report.txt \
+    OUTPUT_STATS=aligned/${sample}/aligned_${sample}_clean.bam_stats.txt \
+    SUMMARY=aligned/${sample}/aligned_${sample}_clean.bam_summary.txt \
+    PRIMER_SEQUENCE=AAGCAGTGGTATCAACGCAGAGTAC \
+    NUM_THREADS=$ncores \
+    TMP_DIR=tempdir
+done
 
 ## Digital gene expression.
 
 for sample in ${samples[@]}; do
   singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
   DigitalExpression \
-    I=aligned/${sample}/aligned_${sample}_merged.bam \
+    I=aligned/${sample}/aligned_${sample}_clean.bam \
     O=aligned/${sample}/${sample}_count_matrix.tsv \
     MIN_NUM_GENES_PER_CELL=100 \
     SUMMARY=aligned/${sample}/${sample}_count_matrix.tsv_summary.txt \
