@@ -1,6 +1,6 @@
 #!/bin/bash
 
-microwell=(ascending_colon, sigmoid_colon, transverse_colon)
+microwell=(ascending_colon sigmoid_colon transverse_colon)
 chromium=(H508_EV H508_LSD1_KD HT29_EV HT29_LSD1_KD)
 ncores=8
 
@@ -13,9 +13,13 @@ module load singularity
 ## Prepare Sigularity Container
 ## ----------
 
+cd ..
+
 if [ ! -f scrnaseq_software_velocyto_0.17.17.sif ]; then
   singularity pull --arch amd64 library://rpolicastro/default/scrnaseq_software:velocyto_0.17.17
 fi
+
+cd scripts
 
 ## 10X Chromium Samples
 ## ----------
