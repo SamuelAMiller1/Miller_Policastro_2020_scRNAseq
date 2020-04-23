@@ -225,25 +225,40 @@ done
 
 ## Detect bead substitution errors.
 
-for sample in ${samples[@]}; do
-  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
-  DetectBeadSubstitutionErrors \
-    I=aligned/${sample}/aligned_${sample}_merged.bam \
-    O=aligned/${sample}/aligned_${sample}_bead_substitution.bam \
-    OUTPUT_REPORT=aligned/${sample}/aligned_${sample}_bead_substitution.bam_summary.txt \
-    NUM_THREADS=$ncores
-done
+#for sample in ${samples[@]}; do
+#  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+#  DetectBeadSubstitutionErrors \
+#    I=aligned/${sample}/aligned_${sample}_merged.bam \
+#    O=aligned/${sample}/aligned_${sample}_bead_substitution.bam \
+#    OUTPUT_REPORT=aligned/${sample}/aligned_${sample}_bead_substitution.bam_summary.txt \
+#    NUM_THREADS=$ncores
+#    CELL_BARCODE_TAG="XC:Z" \
+#    MOLECULAR_BARCODE_TAG="XM:Z"
+#done
 
 ## Detect bead synthesis errors.
 
+#for sample in ${samples[@]}; do
+#  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+#  DetectBeadSynthesisErrors \
+#    I=aligned/${sample}/aligned_${sample}_bead_substitution.bam \
+#    O=aligned/${sample}/aligned_${sample}_clean.bam \
+#    REPORT=aligned/${sample}/aligned_${sample}_clean.bam_report.txt \
+#    OUTPUT_STATS=aligned/${sample}/aligned_${sample}_clean.bam_stats.txt \
+#    SUMMARY=aligned/${sample}/aligned_${sample}_clean.bam_summary.txt \
+#    PRIMER_SEQUENCE=AAGCAGTGGTATCAACGCAGAGTAC \
+#    NUM_THREADS=$ncores
+#done
+
+## Digital gene expression.
+
 for sample in ${samples[@]}; do
   singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
-  DetectBeadSynthesisErrors \
-    I=aligned/${sample}/aligned_${sample}_bead_substitution.bam \
-    O=aligned/${sample}/aligned_${sample}_clean.bam \
-    REPORT=aligned/${sample}/aligned_${sample}_clean.bam_report.txt \
-    OUTPUT_STATS=aligned/${sample}/aligned_${sample}_clean.bam_stats.txt \
-    SUMMARY=aligned/${sample}/aligned_${sample}_clean.bam_summary.txt \
-    PRIMER_SEQUENCE=AAGCAGTGGTATCAACGCAGAGTAC \
-    NUM_THREADS=$ncores
+  DigitalExpression \
+    I=aligned/${sample}/aligned_${sample}_merged.bam \
+    O=aligned/${sample}/${sample}_count_matrix.tsv \
+    CELL_BARCODE_TAG="XC" \
+    MOLECULAR_BARCODE_TAG="XM" \
+    NUM_CORE_BARCODES=5000 \
+    SUMMARY=aligned/${sample}/${sample}_count_matrix.tsv_summary.txt
 done
