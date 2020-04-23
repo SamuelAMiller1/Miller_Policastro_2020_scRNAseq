@@ -15,7 +15,7 @@ conda update -n base -y -c defaults conda
 ## Install required software.
 
 conda create -n microwell -y -c conda-forge -c bioconda \
-star picard java-jdk sra-tools
+star picard java-jdk sra-tools samtools
 
 ## Update environment.
 
