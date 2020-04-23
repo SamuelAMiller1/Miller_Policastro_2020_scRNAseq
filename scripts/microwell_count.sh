@@ -271,3 +271,22 @@ for sample in ${samples[@]}; do
     SUMMARY=aligned/${sample}/${sample}_count_matrix.tsv_summary.txt \
     TMP_DIR=tempdir
 done
+
+## Position sort the bams.
+
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  samtools sort \
+    -m 5G \
+    -o aligned/${sample}/aligned_${sample}_possorted.bam \
+    -O BAM \
+    -@ $ncores \
+    aligned/${sample}/aligned_${sample}_clean.bam
+done
+
+## Index the position sorted bams.
+
+for sample in ${samples[@]}; do
+  singularity exec -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_drop_seq_2.3.0.sif \
+  samtools index aligned/${sample}/aligned_${sample}_possorted.bam
+done
