@@ -61,7 +61,9 @@ cell_cycle_phase[, integrated_snn_res.0.8 := factor(
 p <- ggplot(cell_cycle_phase, aes(x = orig.ident, fill = Phase)) +
 	geom_bar(position = "fill") +
 	scale_fill_manual(values = cell_cycle_palette) +
-	theme_bw()
+	theme_bw() +
+	theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
 
 pdf(file.path("results", "cell_cycle", "cell_cycle_by_sample.pdf"), height = 4, width = 6)
 p
@@ -93,7 +95,7 @@ dev.off()
 ## Prepare data for cluster count analysis.
 
 cluster_counts <- as.data.table(seurat_integrated@meta.data, keep.rownames = "cell_id")[
-	orig.ident != "COLON_1",
+	!str_detect(orig.ident, "colon"),
 	.(cell_id, orig.ident, integrated_snn_res.0.8,
 	line = str_extract(orig.ident, "^HT?\\d+"),
 	condition = str_extract(orig.ident, "(EV|LSD1_KD)$"))
@@ -205,20 +207,20 @@ boot_counts <- map(cluster_counts, function(x) {
 		x, resample + integrated_snn_res.0.8 ~ condition,
 		value.var = "fraction", fill = 0
 	)
-	x[, sim_log2_frac_diff := log2(LSD1_KD) - log2(EV)]
+	x[, sim_log2_frac_diff := log2(LSD1_KD + 1E-10) - log2(EV + 1E-10)]
 	x[, c("EV", "LSD1_KD") := NULL]
 	x <- dcast(x, integrated_snn_res.0.8 ~ resample, value.var = "sim_log2_frac_diff")
 
 	x[,
 		c("boot_mean", "boot_lower_ci", "boot_upper_ci") := list(
-			rowMeans(.SD),
+			rowMeans(.SD, na.rm = TRUE),
 			apply(.SD, 1, function(x) {
-				x <- quantile(x, probs = 0.05)
+				x <- quantile(x, probs = 0.05, na.rm = TRUE)
 				x <- as.numeric(x)
 				return(x)
 			}),
 			apply(.SD, 1, function(x) {
-				x <- quantile(x, probs = 0.95)
+				x <- quantile(x, probs = 0.95, na.rm = TRUE)
 				x <- as.numeric(x)
 				return(x)
 			})
@@ -262,6 +264,7 @@ p <- ggplot(plot_results, aes(x = integrated_snn_res.0.8, y = boot_mean, color =
 	scale_color_manual(values = c(cell_cycle_palette[3], "grey")) +
 	theme_bw() +
 	coord_flip() +
+	ylim(c(-3.5,2)) +
 	facet_wrap(line ~ ., ncol = 1, scales = "free")
 
 pdf(file.path("results", "cluster_counts", "cluster_counts_pointrange.pdf"), height = 8, width = 6)
