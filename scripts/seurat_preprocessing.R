@@ -1,6 +1,6 @@
 ## Load singularity container.
 ##
-## singularity shell -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_seurat_velocytor_0.3.sif
+## singularity shell -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_seurat_velocyto_0.3.sif
 ##
 ## . /opt/conda/etc/profile.d/conda.sh
 ## conda activate seurat; R
@@ -264,3 +264,5 @@ seurat_loom <- as.loom(
 	seurat_integrated,
 	filename = file.path("results", "loom", "seurat_integrated.loom")
 )
+
+seurat_loom$close_all()
