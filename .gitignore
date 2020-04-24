@@ -1,6 +1,8 @@
-sequences/
-genome/
-aligned/
+/sequences/
+/genome/
+/aligned/
+/results/r_objects/
+/results/cerebro/
 *.RDS
 *.sif
 *.crb
