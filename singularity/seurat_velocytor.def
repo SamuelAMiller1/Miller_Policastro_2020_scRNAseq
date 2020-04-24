@@ -15,7 +15,7 @@ conda update -n base -y -c defaults conda
 
 conda create -n seurat -y -c conda-forge -c bioconda -c defaults -c tdido \
 boost python-igraph hdf5 openmpi openblas \
-r-tidyverse r-devtools r-data.table r-seurat r-clustree r-wesanderson r-biocmanager r-loom \
+r-tidyverse r-devtools r-data.table r-seurat r-clustree r-wesanderson r-biocmanager \
 bioconductor-genomicranges bioconductor-genomicfeatures bioconductor-rtracklayer \
 bioconductor-pcamethods
 
@@ -27,7 +27,7 @@ conda update -n seurat -y -c conda-forge -c bioconda --all
 
 conda clean -y --all
 
-## Install unixtools, cerebro, seurat wrappers, and velocyto.R
+## Install unixtools, cerebro, seurat wrappers, velocyto.Rm and loomR.
 
 apt-get -y update
 apt-get -y install build-essential git-all
@@ -38,6 +38,7 @@ R --slave -e "Sys.setenv(TAR='/bin/tar'); install.packages('unixtools',,'http://
 R --slave -e "Sys.setenv(TAR='/bin/tar'); BiocManager::install('romanhaa/cerebroApp')"
 R --slave -e "Sys.setenv(TAR='/bin/tar'); devtools::install_github('satijalab/seurat-wrappers')"
 R --slave -e "Sys.setenv(TAR='/bin/tar'); devtools::install_github('velocyto-team/velocyto.R')"
+R --slave -e "Sys.setenv(TAR='/bin/tar'); devtools::install_github('mojaveazure/loomR', ref = 'develop')"
 
 %environment
 

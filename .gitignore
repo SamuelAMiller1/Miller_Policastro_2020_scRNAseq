@@ -3,6 +3,8 @@
 /aligned/
 /results/r_objects/
 /results/cerebro/
+/results/loom/
 *.RDS
 *.sif
 *.crb
+*.loom

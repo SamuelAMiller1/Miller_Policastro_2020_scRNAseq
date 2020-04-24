@@ -13,6 +13,7 @@ library("clustree")
 library("future")
 library("unixtools")
 library("cerebroApp")
+library("loomR")
 
 ##########################
 ## Seurat Analysis LSD1 ##
@@ -250,4 +251,16 @@ exportFromSeurat(
 	experiment_name = "LSD1_KD", organism = "hg", column_sample = "orig.ident",
 	column_cluster = "integrated_snn_res.0.8", column_nUMI = "nCount_RNA",
 	column_nGene = "nFeature_RNA", column_cell_cycle_seurat = "Phase"
+)
+
+## Export as Loom for PAGA
+## ----------
+
+if (!dir.exists(file.path("results", "loom"))) {
+	dir.create(file.path("results", "loom"))
+}
+
+seurat_loom <- as.loom(
+	seurat_integrated,
+	filename = file.path("results", "loom", "seurat_integrated.loom")
 )
