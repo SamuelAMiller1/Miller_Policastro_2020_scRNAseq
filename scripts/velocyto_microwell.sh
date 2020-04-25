@@ -15,7 +15,7 @@ fi
 
 singularity exec -eCB `pwd` -H `pwd` scrnaseq_software_velocyto_0.17.17.sif \
 velocyto run \
-  -o aligned/${SAMPLE}_velocyto
+  -o aligned/${SAMPLE}_velocyto \
   -@ $NCORES \
   --samtools-memory 5000 \
   -m genome/repeat_mask.gtf \
