@@ -280,5 +280,7 @@ dev.off()
 ## Get marker genes for each cluster.
 
 markers <- FindAllMarkers(seurat_integrated, assay = "RNA", min.pct = 0.25)
+saveRDS(markers, file.path("results", "r_objects", "markers.RDS"))
+
 
 markers <- as.data.table(markers)
