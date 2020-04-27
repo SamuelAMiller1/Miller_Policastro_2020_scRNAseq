@@ -14,7 +14,7 @@ conda update -n base -y -c defaults conda
 ## Install required software.
 
 conda create -n seurat -y -c conda-forge -c bioconda -c defaults -c tdido \
-boost python-igraph hdf5 openmpi openblas \
+boost python-igraph hdf5 openmpi openblas leidenalg \
 r-tidyverse r-devtools r-data.table r-seurat r-clustree r-wesanderson r-biocmanager \
 bioconductor-genomicranges bioconductor-genomicfeatures bioconductor-rtracklayer \
 bioconductor-pcamethods

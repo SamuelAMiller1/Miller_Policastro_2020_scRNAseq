@@ -1,6 +1,6 @@
 ## Load singularity container.
 ##
-## singularity shell -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_seurat_velocyto_0.3.sif
+## singularity shell -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_seurat_velocytor_0.3.sif
 ##
 ## . /opt/conda/etc/profile.d/conda.sh
 ## conda activate seurat; R
@@ -176,7 +176,10 @@ dev.off()
 ## Clustering the data.
 
 seurat_integrated <- FindNeighbors(seurat_integrated, dims = 1:35)
-seurat_integrated <- FindClusters(seurat_integrated, resolution = seq(0.2, 2.0, 0.1))
+seurat_integrated <- FindClusters(
+	seurat_integrated, resolution = seq(0.2, 1.6, 0.1),
+	algorithm = 4
+)
 
 ## Plotting a cluster tree.
 
@@ -188,7 +191,7 @@ dev.off()
 
 ## Switch identity to a presumptive good clustering resolution.
 
-Idents(seurat_integrated) <- "integrated_snn_res.0.8"
+Idents(seurat_integrated) <- "integrated_snn_res.0.7"
 
 ## UMAP dimension reduction for visualization.
 
