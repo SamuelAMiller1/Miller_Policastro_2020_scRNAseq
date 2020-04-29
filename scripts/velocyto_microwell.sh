@@ -10,12 +10,12 @@ cd ..
 module load singularity
 
 if [ ! -d aligned/${SAMPLE}_velocyto ]; then
-  mkdir -p aligned/${SAMPLE}_velocyto
+  mkdir -p aligned/${SAMPLE}/velocyto
 fi
 
 singularity exec -eCB `pwd` -H `pwd` scrnaseq_software_velocyto_0.17.17.sif \
 velocyto run \
-  -o aligned/${SAMPLE}_velocyto \
+  -o aligned/${SAMPLE}/velocyto \
   -@ $NCORES \
   --samtools-memory 5000 \
   -m genome/repeat_mask.gtf \
