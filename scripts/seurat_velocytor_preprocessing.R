@@ -40,10 +40,9 @@ velocyto_samples <- list(
 	H508_EV = file.path("aligned", "H508_EV", "velocyto", "H508_EV.loom"),
 	H508_LSD1_KD = file.path("aligned", "H508_LSD1_KD", "velocyto", "H508_LSD1_KD.loom"),
 	ascending_colon = file.path("aligned", "ascending_colon", "velocyto", "aligned_ascending_colon_possorted_B7ZG9.loom"),
-	sigmoid_colon = file.path("aligned", "sigmoid_colon", "velocyto", "aligned_sigmoid_colon_possorted_FW46J.loom")
+	sigmoid_colon = file.path("aligned", "sigmoid_colon", "velocyto", "aligned_sigmoid_colon_possorted_FW46J.loom"),
+        transverse_colon = file.path("aligned", "transverse_colon", "velocyto", "aligned_transverse_colon_possorted_JU0QA.loom")
 )
-#transverse_colon = file.path("aligned", "transverse_colon", "velocyto", ".loom")
-
 
 ## Read in data.
 
@@ -96,7 +95,7 @@ seurat_obj <- imap(seurat_obj, function(x, y) {
 #	if (y == "transverse_colon") {
 #		x <- subset(x, subset = percent.mt <= 25 & nFeature_RNA >= 500)
 #	} else if (y %in% c("sigmoid_colon", "ascending_colon")) {
-	if (y %in% c("sigmoid_colon", "ascending_colon")) {
+	if (y %in% c("sigmoid_colon", "ascending_colon", "transverse_colon")) {
 		x <- subset(x, subset = percent.mt <= 25 & nFeature_spliced >= 175)
 	} else {
 		x <- subset(x, subset = percent.mt <= 25 & nFeature_spliced >= 2000)
