@@ -85,18 +85,18 @@ if (!dir.exists(file.path("results", "preprocessing"))) {
 	dir.create(file.path("results", "preprocessing"))
 }
 
-pdf(file.path("results", "preprocessing", "mt_content_spliced.pdf"), height = 10, width = 10)
+png(
+	file.path("results", "preprocessing", "mt_content_spliced.png"),
+	height = 10, width = 10, res = 300, units = "in"
+)
 p
 dev.off()
 
 ## Filter the data based on number of features and mitochondrial content.
 
 seurat_obj <- imap(seurat_obj, function(x, y) {
-#	if (y == "transverse_colon") {
-#		x <- subset(x, subset = percent.mt <= 25 & nFeature_RNA >= 500)
-#	} else if (y %in% c("sigmoid_colon", "ascending_colon")) {
 	if (y %in% c("sigmoid_colon", "ascending_colon", "transverse_colon")) {
-		x <- subset(x, subset = percent.mt <= 25 & nFeature_spliced >= 175)
+		x <- subset(x, subset = percent.mt <= 30 & nFeature_spliced >= 175)
 	} else {
 		x <- subset(x, subset = percent.mt <= 25 & nFeature_spliced >= 2000)
 	}
@@ -174,8 +174,10 @@ dev.off()
 seurat_integrated <- FindNeighbors(seurat_integrated, dims = 1:35)
 seurat_integrated <- FindClusters(
 	seurat_integrated, resolution = seq(0.2, 1.2, 0.1),
-	algorithm = 4
+	method = "igraph", algorithm = 4, weights = TRUE
 )
+
+saveRDS(seurat_integrated, file.path("results", "r_objects", "seurat_integrated_spliced.RDS"))
 
 ## Plotting a cluster tree.
 
@@ -187,7 +189,7 @@ dev.off()
 
 ## Switch identity to a presumptive good clustering resolution.
 
-Idents(seurat_integrated) <- "integrated_snn_res.0.7"
+Idents(seurat_integrated) <- "integrated_snn_res.0.8"
 
 ## UMAP dimension reduction for visualization.
 
@@ -209,10 +211,11 @@ dev.off()
 ## RNA Velocity
 ## ----------
 
-seurat_velocity <- RunVelocity(
-	seurat_integrated, ambiguous = "ambiguous", ncores = 1,
-	deltaT = 1, kCells = 25, fit.quantile = 0.02
-)
+# Takes a long time to run so will move to its own script.
+#seurat_velocity <- RunVelocity(
+#	seurat_integrated, ambiguous = "ambiguous", ncores = 1,
+#	deltaT = 1, kCells = 25, fit.quantile = 0.02
+#)
 
 ## Export to Cerebro
 ## ----------
