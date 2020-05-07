@@ -36,30 +36,17 @@ samples_10x <- list(
 	HT29_EV = file.path("aligned", "HT29_EV", "outs", "filtered_feature_bc_matrix"),
 	HT29_LSD1_KD = file.path("aligned", "HT29_LSD1_KD", "outs", "filtered_feature_bc_matrix"),
 	H508_EV = file.path("aligned", "H508_EV", "outs", "filtered_feature_bc_matrix"),
-	H508_LSD1_KD = file.path("aligned", "H508_LSD1_KD", "outs", "filtered_feature_bc_matrix")
-)
-
-samples_microwell <- list(
-	ascending_colon = file.path("aligned", "ascending_colon", "ascending_colon_count_matrix.tsv"),
-	sigmoid_colon = file.path("aligned", "sigmoid_colon", "sigmoid_colon_count_matrix.tsv"),
-	transverse_colon = file.path("aligned", "transverse_colon", "transverse_colon_count_matrix.tsv")
+	H508_LSD1_KD = file.path("aligned", "H508_LSD1_KD", "outs", "filtered_feature_bc_matrix"),
+	COLON_1 = file.path("aligned", "COLON_1", "outs", "filtered_feature_bc_matrix")
 )
 
 ## Read in data.
 
 counts_10X <- map(samples_10x, Read10X)
 
-counts_microwell <- map(samples_microwell, function(x) {
-	counts <- read.table(x, sep = "\t", header = TRUE, row.names = 1, stringsAsFactors = FALSE)
-	counts <- as.matrix(counts)
-	return(counts)
-})
-
-raw_counts <- c(counts_10X, counts_microwell)
-
 ## Convert to seurat object.
 
-seurat_obj <- imap(raw_counts, ~ CreateSeuratObject(
+seurat_obj <- imap(counts_10X, ~ CreateSeuratObject(
 	counts = .x, project = .y, min.cells = 10, min.features = 250
 ))
 
@@ -98,10 +85,8 @@ dev.off()
 ## Filter the data based on number of features and mitochondrial content.
 
 seurat_obj <- imap(seurat_obj, function(x, y) {
-	if (y == "transverse_colon") {
-		x <- subset(x, subset = percent.mt <= 25 & nFeature_RNA >= 500)
-	} else if (y %in% c("sigmoid_colon", "ascending_colon")) {
-		x <- subset(x, subset = percent.mt <= 25 & nFeature_RNA >= 250)
+	if (y == "COLON_1") {
+		x <- subset(x, subset = percent.mt <= 30 & nFeature_RNA >= 1000)
 	} else {
 		x <- subset(x, subset = percent.mt <= 25 & nFeature_RNA >= 2500)
 	}
@@ -175,10 +160,10 @@ dev.off()
 
 ## Clustering the data.
 
-seurat_integrated <- FindNeighbors(seurat_integrated, dims = 1:35)
+seurat_integrated <- FindNeighbors(seurat_integrated, dims = 1:30)
 seurat_integrated <- FindClusters(
-	seurat_integrated, resolution = seq(0.2, 1.6, 0.1),
-	algorithm = 4
+	seurat_integrated, resolution = seq(0.2, 1.2, 0.1),
+	algorithm = 4, method = "igraph", weights = TRUE
 )
 
 ## Plotting a cluster tree.
@@ -191,14 +176,14 @@ dev.off()
 
 ## Switch identity to a presumptive good clustering resolution.
 
-Idents(seurat_integrated) <- "integrated_snn_res.0.7"
+Idents(seurat_integrated) <- "integrated_snn_res.0.6"
 
 ## UMAP dimension reduction for visualization.
 
 if (!dir.exists("tempdir")) dir.create("tempdir")
 set.tempdir("tempdir")
 
-seurat_integrated <- RunUMAP(seurat_integrated, dims = 1:35)
+seurat_integrated <- RunUMAP(seurat_integrated, dims = 1:30)
 
 ## Plot Clusters.
 
