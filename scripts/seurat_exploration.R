@@ -266,7 +266,6 @@ p <- ggplot(plot_results, aes(x = integrated_snn_res.0.7, y = boot_mean, color =
 	scale_color_manual(values = c(cell_cycle_palette[3], "grey")) +
 	theme_bw() +
 	coord_flip() +
-	ylim(c(-3.5,2)) +
 	facet_wrap(line ~ ., ncol = 1, scales = "free")
 
 pdf(file.path("results", "cluster_counts", "cluster_counts_pointrange.pdf"), height = 8, width = 6)

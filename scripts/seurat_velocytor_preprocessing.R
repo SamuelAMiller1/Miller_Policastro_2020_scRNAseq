@@ -1,6 +1,6 @@
 ## Load singularity container.
 ##
-## singularity shell -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_seurat_velocytor_0.3.sif
+## singularity shell -eCB `pwd` -H `pwd` scrnaseq_software_seurat_velocytor_0.3.sif
 ##
 ## . /opt/conda/etc/profile.d/conda.sh
 ## conda activate seurat; R
@@ -39,9 +39,7 @@ velocyto_samples <- list(
 	HT29_LSD1_KD = file.path("aligned", "HT29_LSD1_KD", "velocyto", "HT29_LSD1_KD.loom"),
 	H508_EV = file.path("aligned", "H508_EV", "velocyto", "H508_EV.loom"),
 	H508_LSD1_KD = file.path("aligned", "H508_LSD1_KD", "velocyto", "H508_LSD1_KD.loom"),
-	ascending_colon = file.path("aligned", "ascending_colon", "velocyto", "aligned_ascending_colon_possorted_B7ZG9.loom"),
-	sigmoid_colon = file.path("aligned", "sigmoid_colon", "velocyto", "aligned_sigmoid_colon_possorted_FW46J.loom"),
-        transverse_colon = file.path("aligned", "transverse_colon", "velocyto", "aligned_transverse_colon_possorted_JU0QA.loom")
+	COLON_1 = file.path("aligned", "COLON_1", "velocyto", "COLON_1.loom")
 )
 
 ## Read in data.
@@ -95,8 +93,8 @@ dev.off()
 ## Filter the data based on number of features and mitochondrial content.
 
 seurat_obj <- imap(seurat_obj, function(x, y) {
-	if (y %in% c("sigmoid_colon", "ascending_colon", "transverse_colon")) {
-		x <- subset(x, subset = percent.mt <= 30 & nFeature_spliced >= 175)
+	if (y == "COLON_1") {
+		x <- subset(x, subset = percent.mt <= 30 & nFeature_spliced >= 750)
 	} else {
 		x <- subset(x, subset = percent.mt <= 25 & nFeature_spliced >= 2000)
 	}
@@ -171,7 +169,7 @@ dev.off()
 
 ## Clustering the data.
 
-seurat_integrated <- FindNeighbors(seurat_integrated, dims = 1:35)
+seurat_integrated <- FindNeighbors(seurat_integrated, dims = 1:30)
 seurat_integrated <- FindClusters(
 	seurat_integrated, resolution = seq(0.2, 1.2, 0.1),
 	method = "igraph", algorithm = 4, weights = TRUE
@@ -189,14 +187,14 @@ dev.off()
 
 ## Switch identity to a presumptive good clustering resolution.
 
-Idents(seurat_integrated) <- "integrated_snn_res.0.8"
+Idents(seurat_integrated) <- "integrated_snn_res.0.6"
 
 ## UMAP dimension reduction for visualization.
 
 if (!dir.exists("tempdir")) dir.create("tempdir")
 set.tempdir("tempdir")
 
-seurat_integrated <- RunUMAP(seurat_integrated, dims = 1:35)
+seurat_integrated <- RunUMAP(seurat_integrated, dims = 1:30)
 
 saveRDS(seurat_integrated, file.path("results", "r_objects", "seurat_integrated_spliced.RDS"))
 
