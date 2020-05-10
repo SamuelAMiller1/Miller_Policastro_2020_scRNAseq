@@ -11,6 +11,7 @@ library("tidyverse")
 library("data.table")
 library("future")
 library("wesanderson")
+library("readxl")
 
 ## Variables.
 
@@ -298,4 +299,61 @@ if (!dir.exists(file.path("results", "marker_tables"))) {
 iwalk(markers, function(x, y) {
 	file_name <- file.path("results", "marker_tables", str_c("markers_", y, ".tsv"))
 	fwrite(x, file_name, quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
-})
+}
+
+##############################
+## Defining Custom Clusters ##
+##############################
+
+## Read in the custom clusters.
+
+custom_clusts <- read_xlsx(file.path("resources", "clust_classifications.xlsx")) %>%
+	filter_all(any_vars(!is.na(.))) %>%
+	dplyr::rename("cluster" = "Cluster(s)") %>%
+	separate_rows(cluster, sep = ",") %>%
+	dplyr::filter(
+		!(cluster == 14 & Type == "TA"),
+		cluster != 17
+	) %>%
+	dplyr::select(Type, cluster) %>%
+	arrange(as.numeric(cluster)) %>%
+	pull("Type") %>%
+	set_names(levels(seurat_integrated))
+
+## Add metadata column with new clusters.
+
+seurat_integrated[["custom_clusters"]] <- seurat_integrated[["integrated_snn_res.0.6"]][[1]] %>%
+	as.character %>%
+	custom_clusts[.]
+
+seurat_integrated[["custom_clusters"]] <- seurat_integrated[[c("custom_clusters", "orig.ident")]] %>%
+	mutate(custom_clusters = ifelse(
+		orig.ident == "COLON_1" & custom_clusters == "early EEC",
+		"EEC", custom_clusters
+	)) %>%
+	pull("custom_clusters")
+
+## Remove potential doublets and dyign cells.
+
+seurat_integrated <- subset(seurat_integrated, subset = custom_clusters != "dying" & custom_clusters != "delete doublets")
+
+## Set factor order for custom clusters.
+
+seurat_integrated[["custom_clusters"]] <- factor(seurat_integrated[["custom_clusters"]][[1]], levels = c(
+	"TA", "early secretory/stem", "early EEC", "EEC", "early goblet", "goblet",
+	"PLC", "Enterocyte", "Cancer/misc 1", "Cancer/misc 2"
+))
+
+## DimPlot of new clusters.
+
+if (!dir.exists(file.path("results", "custom_clusters"))) {
+	dir.create(file.path("results", "custom_clusters"))
+}
+
+p <- DimPlot(seurat_integrated, group.by = "custom_clusters", split.by = "orig.ident", ncol = 3)
+
+pdf(file.path("results", "custom_clusters", "custom_clusters_dimplot.pdf"), height = 10, width = 16)
+p
+dev.off()
+
+

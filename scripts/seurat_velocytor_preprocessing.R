@@ -254,7 +254,7 @@ if (!dir.exists(file.path("results", "cerebro"))) {
 exportFromSeurat(
 	seurat_integrated, assay = "SCT", file = file.path("results", "cerebro", "cerebro_spliced.crb"),
 	experiment_name = "LSD1_KD", organism = "hg", column_sample = "orig.ident",
-	column_cluster = "integrated_snn_res.0.7", column_nUMI = "nCount_spliced",
+	column_cluster = "integrated_snn_res.0.6", column_nUMI = "nCount_spliced",
 	column_nGene = "nFeature_spliced"
 )
 
