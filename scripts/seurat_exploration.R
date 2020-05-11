@@ -1,7 +1,7 @@
 
 ## load singularity container.
 ##
-## singularity shell -eCB "$(pwd)" -H "$(pwd)" scrnaseq_software_seurat_velocytor_0.3.sif
+## singularity shell -eCB `pwd` -H `pwd` scrnaseq_software_seurat_velocytor_0.3.sif
 ##
 ## . /opt/conda/etc/profile.d/conda.sh
 ## conda activate seurat; R
@@ -12,6 +12,7 @@ library("data.table")
 library("future")
 library("wesanderson")
 library("readxl")
+library("scProportionTest")
 
 ## Variables.
 
@@ -27,7 +28,7 @@ plan("multiprocess", workers = 2)
 ## Load Integrated Data
 ## ----------
 
-seurat_integrated <- readRDS("integrated.RDS")
+seurat_integrated <- readRDS(file.path("results", "r_objects", "seurat_integrated.RDS"))
 
 ##################
 ## Marker Genes ##
@@ -35,7 +36,7 @@ seurat_integrated <- readRDS("integrated.RDS")
 
 ## Run the scripts seurat_marker_genes.sh first.
 
-## Load and perpare marker list.
+## Load and prepare marker list.
 
 markers <- readRDS(file.path("results", "r_objects", "markers.RDS"))
 setDT(markers)
@@ -90,7 +91,7 @@ seurat_integrated[["custom_clusters"]] <- seurat_integrated[[c("custom_clusters"
 	)) %>%
 	pull("custom_clusters")
 
-## Remove potential doublets and dyign cells.
+## Remove potential doublets and dying cells.
 
 seurat_integrated <- subset(seurat_integrated, subset = custom_clusters != "dying" & custom_clusters != "delete doublets")
 
@@ -113,9 +114,11 @@ pdf(file.path("results", "custom_clusters", "custom_clusters_dimplot.pdf"), heig
 p
 dev.off()
 
-## Set custom clusters as default clusters.
+## Set custom clusters as default clusters and save object.
 
 Idents(seurat_integrated) <- "custom_clusters"
+
+saveRDS(seurat_integrated, file.path("results", "r_objects", "seurat_expanded.RDS"))
 
 ################
 ## Cell Cycle ##
@@ -177,188 +180,65 @@ pdf(file.path("results", "cell_cycle", "cell_cycle_by_sample_and_cluster.pdf"), 
 p
 dev.off()
 
+## Cell Cycle Counts
+## ----------
+
+## Prepare data for permutation test.
+
+sc_utils_obj <- sc_utils(seurat_integrated)
+
+comparisons <- list(
+	c("COLON_1", "HT29_EV"),
+	c("COLON_1", "H508_EV"),
+	c("HT29_EV", "H508_EV"),
+	c("HT29_EV", "HT29_LSD1_KD"),
+	c("H508_EV", "H508_LSD1_KD"),
+	c("HT29_LSD1_KD", "H508_LSD1_KD")
+)
+
+## Permutation tests amd plotting.
+
+walk(comparisons, function(x) {
+	sc_utils_obj <- permutation_test(
+		sc_utils_obj, cluster_identity = "Phase",
+		sample_1 = x[1], sample_2 = x[2]
+	)
+
+	p <- permutation_plot(sc_utils_obj, log2FD_threshold = 1)
+
+	file_name <- str_c(x[1], "_vs_", x[2], ".pdf")
+	pdf(file.path("results", "cell_cycle", file_name), height = 3, width = 8)
+	print(p); dev.off()
+})
+
 #########################
 ## Cluster Cell Counts ##
 #########################
 
 ## Prepare data for cluster count analysis.
 
-cluster_counts <- as.data.table(seurat_integrated@meta.data, keep.rownames = "cell_id")[
-	!str_detect(orig.ident, "colon"),
-	.(cell_id, orig.ident, custom_clusters,
-	line = str_extract(orig.ident, "^HT?\\d+"),
-	condition = str_extract(orig.ident, "(EV|LSD1_KD)$"))
-]
-cluster_counts[, orig.ident := NULL]
-cluster_counts <- split(cluster_counts, cluster_counts$line)
+sc_utils_obj <- sc_utils(seurat_integrated)
 
-## Get observed cluster fractional differences.
-
-observed_counts <- map(cluster_counts, function(x) {
-	x <- x[,
-		.(count = .N), by = .(condition, custom_clusters)
-	]
-	x[, fraction := count / sum(count), by = condition]
-	x <- dcast(x, custom_clusters ~ condition, value.var = "fraction") 
-	x[, obs_log2_frac_diff := log2(LSD1_KD) - log2(EV)]
-
-	return(x)
-})
-
-## Merge back the observed cluster fractions with the cluster counts.
-
-merged <- map2(cluster_counts, observed_counts, function(x, y) {
-	obs <- y[, .(custom_clusters, obs_log2_frac_diff)]
-	setkey(obs, custom_clusters)
-
-	clusts <- copy(x)
-	setkey(clusts, custom_clusters)
-
-	clusts <- merge(clusts, obs)
-	return(clusts)
-})
-
-## Get permutation cluster fractional differences.
-
-permuted_counts <- map(merged, function(x) {
-	perm_samples <- modelr::permute(x, n = 10000, .id = "resample") %>%
-		pull(perm) %>%
-		map(function(resample) {
-			resampled_data <- resample$data
-			resampled_data[, condition := resampled_data$condition[resample$idx]]
-			
-			resampled_data <- resampled_data[,
-				.(count = .N),
-				by = .(condition, custom_clusters, obs_log2_frac_diff)
-			]
-			resampled_data[, fraction := count / sum(count), by = condition]
-			resampled_data <- dcast(
-				resampled_data, custom_clusters + obs_log2_frac_diff ~ condition,
-				value.var = "fraction"
-			)
-			resampled_data[, sim_log2_frac_diff := log2(LSD1_KD) - log2(EV)]
-			resampled_data[, conditional := case_when(
-				obs_log2_frac_diff > 0 & sim_log2_frac_diff >= obs_log2_frac_diff ~ TRUE,
-				obs_log2_frac_diff < 0 & sim_log2_frac_diff <= obs_log2_frac_diff ~ TRUE,
-				TRUE ~ FALSE
-			)]
-			resampled_data[, c(
-				"EV", "LSD1_KD", "obs_log2_frac_diff", "sim_log2_frac_diff"
-			) := NULL]
-
-			return(resampled_data)
-		})
-	perm_samples <- rbindlist(perm_samples, idcol = "resample")
-	perm_samples <- dcast(
-		perm_samples, custom_clusters ~ resample,
-		value.var = "conditional"
-	)
-	perm_samples[,
-		pvalue := (rowSums(.SD) + 1) / ((ncol(perm_samples) - 1) + 1),
-		.SDcols = !"custom_clusters"
-	]
-	perm_samples <- perm_samples[, .(custom_clusters, pvalue)]
-	perm_samples[, FDR := p.adjust(pvalue, "fdr")]
-
-	return(perm_samples)
-})
-
-## Add p-values back to data.
-
-perm_results <- map2(observed_counts, permuted_counts, function(x, y) {
-	x <- setkey(x, custom_clusters)
-	y <- setkey(y, custom_clusters)
-
-	merged <- merge(x, y)
-	return(merged)
-})
-
-## Bootstrap fraction difference.
-
-boot_counts <- map(cluster_counts, function(x) {
-	x <- split(x, x$condition)
-	x <- map(x, function(y) {
-		resampled_data <- modelr::bootstrap(y, n = 10000, id = "resample") %>%
-			pull(strap) %>%
-			map(function(resample) {
-				resampled_data <- resample$data
-				resampled_data <- resampled_data[resample$idx, ]
-				resampled_data <- resampled_data[,
-					.(count = .N), by = custom_clusters
-				]
-			})
-		resampled_data <- rbindlist(resampled_data, idcol = "resample")
-		resampled_data[, fraction := count / sum(count), by = resample]
-		resampled_data[, count := NULL]
-	})
-	x <- rbindlist(x, idcol = "condition")
-	x <- dcast(
-		x, resample + custom_clusters ~ condition,
-		value.var = "fraction", fill = 0
-	)
-	x[, sim_log2_frac_diff := log2(LSD1_KD + 1E-10) - log2(EV + 1E-10)]
-	x[, c("EV", "LSD1_KD") := NULL]
-	x <- dcast(x, custom_clusters ~ resample, value.var = "sim_log2_frac_diff")
-
-	x[,
-		c("boot_mean", "boot_lower_ci", "boot_upper_ci") := list(
-			rowMeans(.SD, na.rm = TRUE),
-			apply(.SD, 1, function(x) {
-				x <- quantile(x, probs = 0.05, na.rm = TRUE)
-				x <- as.numeric(x)
-				return(x)
-			}),
-			apply(.SD, 1, function(x) {
-				x <- quantile(x, probs = 0.95, na.rm = TRUE)
-				x <- as.numeric(x)
-				return(x)
-			})
-		),
-		.SDcols = !"custom_clusters"
-	]
-	x <- x[, .(custom_clusters, boot_mean, boot_lower_ci, boot_upper_ci)]
-	return(x)
-})
-
-## Add boostrap back to data.
-
-boot_results <- map2(perm_results, boot_counts, function(x, y) {
-	x <- setkey(x, custom_clusters)
-	y <- setkey(y, custom_clusters)
-
-	merged <- merge(x, y)
-	return(merged)
-})
-
-## Export permutation and bootstrap results.
-
-if (!dir.exists(file.path("results", "cluster_counts"))) {
-	dir.create(file.path("results", "cluster_counts"))
-}
-
-write.table(
-	boot_results, file.path("results", "cluster_counts", "cluster_counts_table.tsv"),
-	sep = "\t", col.names = TRUE, row.names = FALSE, quote = FALSE
+comparisons <- list(
+        c("COLON_1", "HT29_EV"),
+        c("COLON_1", "H508_EV"),
+	c("HT29_EV", "H508_EV"),
+        c("HT29_EV", "HT29_LSD1_KD"),
+        c("H508_EV", "H508_LSD1_KD"),
+        c("HT29_LSD1_KD", "H508_LSD1_KD")
 )
 
-## Make cluster counts figure.
+## Permutation tests and plotting.
 
-plot_results <- rbindlist(boot_results, idcol = "line")
-plot_results[, custom_clusters := fct_reorder(custom_clusters, boot_mean, .desc = TRUE)]
-plot_results[, significant := ifelse(FDR < 0.05, "FDR < 0.05", "n.s.")]
+walk(comparisons, function(x) {
+        sc_utils_obj <- permutation_test(
+                sc_utils_obj, cluster_identity = "custom_clusters",
+                sample_1 = x[1], sample_2 = x[2]
+        )
 
-p <- ggplot(plot_results, aes(x = custom_clusters, y = boot_mean, color = significant)) +
-	geom_pointrange(aes(ymin = boot_lower_ci, ymax = boot_upper_ci)) +
-	geom_hline(yintercept = 0, lty = 2) +
-	scale_color_manual(values = c(cell_cycle_palette[3], "grey")) +
-	theme_bw() +
-	coord_flip() +
-	theme(
-		axis.title.y = element_blank()
-	) +
-	xlab("Log2 Fold Cell Difference") +
-	facet_wrap(line ~ ., ncol = 1, scales = "free")
+        p <- permutation_plot(sc_utils_obj, log2FD_threshold = 1)
 
-pdf(file.path("results", "cluster_counts", "cluster_counts_pointrange.pdf"), height = 6, width = 6)
-p
-dev.off()
+        file_name <- str_c(x[1], "_vs_", x[2], ".pdf")
+        pdf(file.path("results", "cluster_counts", file_name), height = 3, width = 8)
+        print(p); dev.off()
+})

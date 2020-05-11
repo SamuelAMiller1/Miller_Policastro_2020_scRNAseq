@@ -39,6 +39,7 @@ R --slave -e "Sys.setenv(TAR='/bin/tar'); BiocManager::install('romanhaa/cerebro
 R --slave -e "Sys.setenv(TAR='/bin/tar'); devtools::install_github('satijalab/seurat-wrappers')"
 R --slave -e "Sys.setenv(TAR='/bin/tar'); devtools::install_github('velocyto-team/velocyto.R')"
 R --slave -e "Sys.setenv(TAR='/bin/tar'); devtools::install_github('mojaveazure/loomR', ref = 'develop')"
+R --slave -e "Sys.setenv(TAR='/bin/tar'); devtools::install_github('rpolicastro/scProportionTest')"
 
 %environment
 
