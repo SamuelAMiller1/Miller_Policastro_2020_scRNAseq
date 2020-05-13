@@ -147,6 +147,40 @@ pdf(file.path("results", "custom_clusters", "COLON1_HT29EV_H508EV_cellcycle.pdf"
 p
 dev.off()
 
+## TFF3 expression plot.
+
+meta_data <- as.data.table(seurat_integrated[[]], keep.rownames = "cell_id")
+
+exp_data <- as.data.table(
+	Assays(seurat_integrated, "SCT")@scale.data,
+	keep.rownames = "gene"
+)[
+	gene == "TFF3"
+]
+exp_data <- melt(
+	exp_data, id.vars = "gene",
+	variable.name = "cell_id",
+	value.name = "TFF3_SCT_scaled_UMI"
+)
+exp_data[, gene := NULL]
+
+TFF3_merged <- merge(meta_data, exp_data, by = "cell_id", all.x = TRUE)
+TFF3_merged <- TFF3_merged[orig.ident %in% c("HT29_EV", "H508_EV")]
+TFF3_merged <- TFF3_merged[, TFF3_mean := mean(TFF3_SCT_scaled_UMI), by = custom_clusters]
+TFF3_merged <- TFF3_merged[, custom_clusters := fct_reorder(custom_clusters, -TFF3_mean)][]
+
+p <- ggplot(TFF3_merged, aes(x = custom_clusters, y = TFF3_SCT_scaled_UMI, fill = custom_clusters)) +
+	geom_boxplot(outlier.size = 0.25) +
+	scale_fill_manual(
+		values = rev(as.character(wes_palette("Zissou1", 9, type = "continuous"))),
+		guide = FALSE
+	) +
+	theme_bw() +
+	theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+pdf(file.path("results", "custom_clusters", "TFF3_HT29EV_H508EV_violinplot.pdf"), height = 4.5, width = 4.5)
+p; dev.off()
+
 ################
 ## Cell Cycle ##
 ################
