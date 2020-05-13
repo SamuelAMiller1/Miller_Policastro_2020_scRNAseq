@@ -102,6 +102,17 @@ seurat_integrated[["custom_clusters"]] <- factor(seurat_integrated[["custom_clus
 	"PLC", "Enterocyte", "Cancer/misc 1", "Cancer/misc 2"
 ))
 
+## Set custom clusters as default clusters and save object.
+
+Idents(seurat_integrated) <- "custom_clusters"
+
+saveRDS(seurat_integrated, file.path("results", "r_objects", "seurat_expanded.RDS"))
+
+
+##########################
+## Custom Cluster Plots ##
+##########################
+
 ## DimPlot of new clusters.
 
 if (!dir.exists(file.path("results", "custom_clusters"))) {
@@ -114,11 +125,27 @@ pdf(file.path("results", "custom_clusters", "custom_clusters_dimplot.pdf"), heig
 p
 dev.off()
 
-## Set custom clusters as default clusters and save object.
+## DimPlots of COLON_1, HT29_EV, and H508_EV colored by cluster.
 
-Idents(seurat_integrated) <- "custom_clusters"
+select_cells <- which(seurat_integrated[["orig.ident"]][[1]] %in% c("COLON_1", "HT29_EV", "H508_EV"))
+select_cells <- rownames(seurat_integrated[[]])[select_cells]
 
-saveRDS(seurat_integrated, file.path("results", "r_objects", "seurat_expanded.RDS"))
+p <- DimPlot(seurat_integrated, cells = select_cells, group.by = "custom_clusters")
+
+pdf(file.path("results", "custom_clusters", "COLON1_HT29EV_H508EV_dimplot.pdf"), height = 4, width = 6)
+p
+dev.off()
+
+## DimPlots of COLON_1, HT29_EV, and H508_EV colored by cell cycle phase.
+
+cell_cycle_palette <- wes_palette("Zissou1", 3, type = "continuous") %>%
+        as.character
+
+p <- DimPlot(seurat_integrated, cells = select_cells, group.by = "Phase", cols = cell_cycle_palette)
+
+pdf(file.path("results", "custom_clusters", "COLON1_HT29EV_H508EV_cellcycle.pdf"), height = 4, width = 6)
+p
+dev.off()
 
 ################
 ## Cell Cycle ##
