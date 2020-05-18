@@ -181,6 +181,34 @@ p <- ggplot(TFF3_merged, aes(x = custom_clusters, y = TFF3_SCT_scaled_UMI, fill 
 pdf(file.path("results", "custom_clusters", "TFF3_HT29EV_H508EV_violinplot.pdf"), height = 4.5, width = 4.5)
 p; dev.off()
 
+#######################
+## Marker Gene Plots ##
+#######################
+
+## Pick genes to use for markers for each cluster.
+
+marker_genes <- c(
+	"TA" = "HMGN2", "early_secratory" = "MEX3A", "goblet" = "MUC2",
+	"early_goblet" = "REG4", "early_EEC" = "PAX4", "PLC" = "SPIB",
+	"cancer_misc_1" = "DUSP5", "cancer_misc_2" = "FOXQ1",
+	"enterocyte" = "LGALS2", "EEC" = "CHGA"
+)
+
+## Make the feature plot.
+
+DefaultAssay(seurat_integrated) <- "SCT"
+
+select_cells <- which(seurat_integrated[["orig.ident"]][[1]] %in% c("COLON_1", "HT29_EV", "H508_EV"))
+select_cells <- rownames(seurat_integrated[[]])[select_cells]
+
+p <- FeaturePlot(
+	seurat_integrated, features = marker_genes,
+	cells = select_cells, ncol = 3
+)
+
+pdf(file.path("results", "custom_clusters", "cluster_markers.pdf"), height = 16, width = 16)
+p; dev.off()
+
 ################
 ## Cell Cycle ##
 ################
@@ -303,3 +331,14 @@ walk(comparisons, function(x) {
         pdf(file.path("results", "cluster_counts", file_name), height = 3, width = 8)
         print(p); dev.off()
 })
+
+############################
+## Custom Marker Analysis ##
+############################
+
+## Load in the marker data.
+
+custom_markers <- readRDS(file.path("results", "r_objects", "custom_markers.RDS"))
+setDT(custom_markers)
+
+## Prepare and filter the data.
