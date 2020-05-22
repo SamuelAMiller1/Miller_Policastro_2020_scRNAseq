@@ -336,9 +336,70 @@ walk(comparisons, function(x) {
 ## Custom Marker Analysis ##
 ############################
 
+## Preparing Data
+## ----------
+
 ## Load in the marker data.
 
 custom_markers <- readRDS(file.path("results", "r_objects", "custom_markers.RDS"))
 setDT(custom_markers)
 
 ## Prepare and filter the data.
+
+custom_markers[, avg_log2FC := log2(exp(avg_logFC))]
+custom_markers <- custom_markers[p_val_adj < 0.05 & abs(avg_log2FC) >= log2(1.5)]
+
+## Scale RNA counts for visualization.
+
+DefaultAssay(seurat_integrated, "RNA")
+seurat_integrated <- ScaleData(seurat_integrated, scale.max = 1E10, assay = "RNA")
+
+## Get cells to plot.
+
+select_cells <- which(seurat_integrated[["orig.ident"]][[1]] %in% c("COLON_1", "HT29_EV", "H508_EV"))
+select_cells <- rownames(seurat_integrated[[]])[select_cells]
+
+## Plotting
+## ----------
+
+## Get top markers per cluster.
+
+top_markers <- custom_markers[avg_log2FC >= log2(1.5)]
+top_markers[, cluster := factor(cluster, levels = c(
+	"TA", "early secretory/stem", "early EEC", "EEC", "early goblet", "goblet",
+	"PLC", "Enterocyte", "Cancer/misc 1", "Cancer/misc 2"
+))]
+top_markers <- top_markers[order(cluster, p_val_adj)]
+
+top_markers <- top_markers[, head(.SD, 5), by = cluster]
+top_markers <- top_markers[["gene"]]
+
+## Heatmap of top markers.
+
+p <- DoHeatmap(
+	seurat_integrated, features = top_markers, group.by = "custom_clusters",
+	assay = "RNA", angle = 90, cells = select_cells
+) +
+	scale_fill_viridis_c()
+
+pdf(file.path("results", "custom_clusters", "marker_heatmap.pdf"), width = 16, height = 10)
+p; dev.off()
+
+## Dotplot of top markers.
+
+Idents(seurat_integrated) <- "custom_clusters"
+
+seurat_subset <- subset(
+	seurat_integrated,
+	subset = orig.ident %in% c("COLON_1", "HT29_EV", "H508_EV")
+)
+
+dot_colors <- wes_palette("Zissou1", 100, type = "continuous")
+
+p <- DotPlot(seurat_subset, assay = "RNA", features = top_markers) +
+	coord_flip() +
+	theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+	scale_color_gradientn(colors = dot_colors)
+
+pdf(file.path("results", "custom_clusters", "marker_dotplot.pdf"), width = 12, height = 12)
+p; dev.off()
