@@ -431,11 +431,15 @@ exp_data <- melt(
         variable.name = "cell_id",
         value.name = "LSD1_SCT_scaled_UMI"
 )
-exp_data[, gene := NULL]
 
 LSD1_merged <- merge(meta_data, exp_data, by = "cell_id", all.x = TRUE)
 
 ## LSD1 expression by sample.
+
+LSD1_merged[, orig.ident := fct_reorder(
+	orig.ident, LSD1_SCT_scaled_UMI,
+	median, na.rm = TRUE, .desc = TRUE
+)]
 
 sample_colors <- wes_palette("Zissou1", 5, type = "continuous")
 
@@ -451,6 +455,10 @@ p; dev.off()
 ## LSD1 expression by cluster.
 
 LSD1_subset <- LSD1_merged[orig.ident %in% c("COLON_1", "HT29_EV", "H508_EV")]
+LSD1_subset[, custom_clusters := fct_reorder(
+	custom_clusters, LSD1_SCT_scaled_UMI,
+        median, na.rm = TRUE, .desc = TRUE
+)]
 
 cluster_colors <- wes_palette("Zissou1", 10, type = "continuous")
 
@@ -495,7 +503,7 @@ merged <- merged[orig.ident %in% c("COLON_1", "HT29_EV", "H508_EV")]
 
 sample_colors <- wes_palette("Zissou1", 3, type = "continuous")
 
-p <- ggplot(merged, aes(x = custom_clusters, y = Gene_scaled_UMI)) +
+p <- ggplot(merged, aes(x = orig.ident, y = Gene_scaled_UMI)) +
 	geom_boxplot(outlier.size = 0.25, aes(color = orig.ident)) +
 	theme_bw() +
 	scale_color_manual(values = sample_colors) +
@@ -503,5 +511,5 @@ p <- ggplot(merged, aes(x = custom_clusters, y = Gene_scaled_UMI)) +
 	facet_grid(gene ~ .) +
 	theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-pdf(file.path("results", "gene_plots", "targeted_genes_boxplot.pdf"), height = 10, width = 8)
+pdf(file.path("results", "gene_plots", "targeted_genes_boxplot.pdf"), height = 8, width = 4)
 p; dev.off()
