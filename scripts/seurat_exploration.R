@@ -412,8 +412,9 @@ p <- DotPlot(seurat_subset, assay = "RNA", features = top_markers) +
 pdf(file.path("results", "custom_clusters", "marker_dotplot.pdf"), width = 12, height = 12)
 p; dev.off()
 
-## LSD1 Expression
-## ----------
+#####################
+## LSD1 Expression ##
+#####################
 
 ## Prepare expression data.
 
@@ -460,4 +461,47 @@ p <- ggplot(LSD1_subset, aes(x = custom_clusters, y = LSD1_SCT_scaled_UMI)) +
         theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 pdf(file.path("results", "gene_plots", "LSD1_cluster_boxplot.pdf"), height = 4, width = 8)
+p; dev.off()
+
+#########################
+## Targeted Gene Plots ##
+#########################
+
+## Prepare expression data.
+
+target_genes <- c(
+	"NEUROG3", "PAX4", "ARX", "RCOR2",
+	"NEUROD1", "CHGA", "PYY", "FEV"
+)
+
+meta_data <- as.data.table(seurat_integrated[[]], keep.rownames = "cell_id")
+
+exp_data <- as.data.table(
+        Assays(seurat_integrated, "RNA")@scale.data,
+        keep.rownames = "gene"
+)[
+        gene %in% target_genes
+]
+exp_data <- melt(
+        exp_data, id.vars = "gene",
+        variable.name = "cell_id",
+        value.name = "Gene_scaled_UMI"
+)
+
+merged <- merge(meta_data, exp_data, by = "cell_id", all.x = TRUE)
+merged <- merged[orig.ident %in% c("COLON_1", "HT29_EV", "H508_EV")]
+
+## Plot expression per sample.
+
+sample_colors <- wes_palette("Zissou1", 3, type = "continuous")
+
+p <- ggplot(merged, aes(x = custom_clusters, y = Gene_scaled_UMI)) +
+	geom_boxplot(outlier.size = 0.25, aes(color = orig.ident)) +
+	theme_bw() +
+	scale_color_manual(values = sample_colors) +
+	ylim(0, 30) +
+	facet_grid(gene ~ .) +
+	theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+pdf(file.path("results", "gene_plots", "targeted_genes_boxplot.pdf"), height = 10, width = 8)
 p; dev.off()
