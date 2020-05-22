@@ -504,9 +504,9 @@ merged <- merged[orig.ident %in% c("COLON_1", "HT29_EV", "H508_EV")]
 sample_colors <- wes_palette("Zissou1", 3, type = "continuous")
 
 p <- ggplot(merged, aes(x = orig.ident, y = Gene_scaled_UMI)) +
-	geom_boxplot(outlier.size = 0.25, aes(color = orig.ident)) +
+	geom_boxplot(outlier.size = 0.25, aes(fill = orig.ident)) +
 	theme_bw() +
-	scale_color_manual(values = sample_colors) +
+	scale_fill_manual(values = sample_colors) +
 	ylim(0, 30) +
 	facet_grid(gene ~ .) +
 	theme(axis.text.x = element_text(angle = 45, hjust = 1))
