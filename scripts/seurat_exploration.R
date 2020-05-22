@@ -411,3 +411,53 @@ p <- DotPlot(seurat_subset, assay = "RNA", features = top_markers) +
 
 pdf(file.path("results", "custom_clusters", "marker_dotplot.pdf"), width = 12, height = 12)
 p; dev.off()
+
+## LSD1 Expression
+## ----------
+
+## Prepare expression data.
+
+meta_data <- as.data.table(seurat_integrated[[]], keep.rownames = "cell_id")
+
+exp_data <- as.data.table(
+        Assays(seurat_integrated, "SCT")@scale.data,
+        keep.rownames = "gene"
+)[
+        gene == "KDM1A"
+]
+exp_data <- melt(
+        exp_data, id.vars = "gene",
+        variable.name = "cell_id",
+        value.name = "LSD1_SCT_scaled_UMI"
+)
+exp_data[, gene := NULL]
+
+LSD1_merged <- merge(meta_data, exp_data, by = "cell_id", all.x = TRUE)
+
+## LSD1 expression by sample.
+
+sample_colors <- wes_palette("Zissou1", 5, type = "continuous")
+
+p <- ggplot(LSD1_merged, aes(x = orig.ident, y = LSD1_SCT_scaled_UMI)) +
+	geom_boxplot(outlier.size = 0.25, aes(fill = orig.ident)) +
+	theme_bw() +
+	scale_fill_manual(values = sample_colors) +
+	theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+pdf(file.path("results", "gene_plots", "LSD1_sample_boxplot.pdf"), height = 4, width = 6)
+p; dev.off()
+
+## LSD1 expression by cluster.
+
+LSD1_subset <- LSD1_merged[orig.ident %in% c("COLON_1", "HT29_EV", "H508_EV")]
+
+cluster_colors <- wes_palette("Zissou1", 10, type = "continuous")
+
+p <- ggplot(LSD1_subset, aes(x = custom_clusters, y = LSD1_SCT_scaled_UMI)) +
+        geom_boxplot(outlier.size = 0.25, aes(fill = custom_clusters)) +
+        theme_bw() +
+        scale_fill_manual(values = cluster_colors) +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+pdf(file.path("results", "gene_plots", "LSD1_cluster_boxplot.pdf"), height = 4, width = 8)
+p; dev.off()
