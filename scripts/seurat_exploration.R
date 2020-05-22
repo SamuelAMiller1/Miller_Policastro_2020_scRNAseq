@@ -359,6 +359,14 @@ seurat_integrated <- ScaleData(seurat_integrated, scale.max = 1E10, assay = "RNA
 select_cells <- which(seurat_integrated[["orig.ident"]][[1]] %in% c("COLON_1", "HT29_EV", "H508_EV"))
 select_cells <- rownames(seurat_integrated[[]])[select_cells]
 
+## Export table.
+
+fwrite(
+	as.data.table(mutate_if(custom_markers, is.factor, as.character)),
+	file.path("results", "custom_clusters", "marker_table.tsv"),
+	sep = "\t", col.names = TRUE, row.names = FALSE, quote = FALSE
+)
+
 ## Plotting
 ## ----------
 
