@@ -398,25 +398,6 @@ p <- DoHeatmap(
 pdf(file.path("results", "custom_clusters", "marker_heatmap.pdf"), width = 16, height = 10)
 p; dev.off()
 
-## Dotplot of top markers.
-
-Idents(seurat_integrated) <- "custom_clusters"
-
-seurat_subset <- subset(
-	seurat_integrated,
-	subset = orig.ident %in% c("COLON_1", "HT29_EV", "H508_EV")
-)
-
-dot_colors <- wes_palette("Zissou1", 100, type = "continuous")
-
-p <- DotPlot(seurat_subset, assay = "SCT", features = top_markers, scale = FALSE) +
-	coord_flip() +
-	theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-	scale_color_gradientn(colors = dot_colors)
-
-pdf(file.path("results", "custom_clusters", "marker_dotplot.pdf"), width = 12, height = 12)
-p; dev.off()
-
 #####################
 ## LSD1 Expression ##
 #####################
@@ -426,7 +407,7 @@ p; dev.off()
 meta_data <- as.data.table(seurat_integrated[[]], keep.rownames = "cell_id")
 
 exp_data <- as.data.table(
-        Assays(seurat_integrated, "SCT")@scale.data,
+        Assays(seurat_integrated, "SCT")@data,
         keep.rownames = "gene"
 )[
         gene == "KDM1A"
@@ -490,7 +471,7 @@ target_genes <- c(
 meta_data <- as.data.table(seurat_integrated[[]], keep.rownames = "cell_id")
 
 exp_data <- as.data.table(
-        Assays(seurat_integrated, "RNA")@scale.data,
+        Assays(seurat_integrated, "SCT")@data,
         keep.rownames = "gene"
 )[
         gene %in% target_genes
@@ -512,9 +493,9 @@ p <- ggplot(merged, aes(x = orig.ident, y = Gene_scaled_UMI)) +
 	geom_boxplot(outlier.size = 0.25, aes(fill = orig.ident)) +
 	theme_bw() +
 	scale_fill_manual(values = sample_colors) +
-	ylim(0, 30) +
 	facet_grid(gene ~ .) +
-	theme(axis.text.x = element_text(angle = 45, hjust = 1))
+	theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+	ylim(0, 3)
 
 pdf(file.path("results", "gene_plots", "targeted_genes_boxplot.pdf"), height = 8, width = 4)
 p; dev.off()
