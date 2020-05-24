@@ -336,23 +336,28 @@ walk(comparisons, function(x) {
 ## Custom Marker Analysis ##
 ############################
 
+options(future.globals.maxSize = 10000 * 1024 ^2)
+plan("multiprocess", workers = 4)
+
+## Marker Analysis
+## ----------
+
+Idents(seurat_integrated) <- "custom_clusters"
+
+custom_markers <- FindAllMarkers(
+	seurat_integrated, assay = "SCT",
+	slot = "data", min.pct = 0.25
+)
+
+saveRDS(custom_markers, file.path("results", "r_objects", "custom_markers.RDS"))
+
 ## Preparing Data
 ## ----------
 
-## Load in the marker data.
-
-custom_markers <- readRDS(file.path("results", "r_objects", "custom_markers.RDS"))
 setDT(custom_markers)
-
-## Prepare and filter the data.
-
 custom_markers[, avg_log2FC := log2(exp(avg_logFC))]
 custom_markers <- custom_markers[p_val_adj < 0.05 & abs(avg_log2FC) >= log2(1.5)]
-
-## Scale RNA counts for visualization.
-
-DefaultAssay(seurat_integrated, "RNA")
-seurat_integrated <- ScaleData(seurat_integrated, scale.max = 1E10, assay = "RNA")
+custom_markers <- custom_markers[order(cluster, p_val_adj)]
 
 ## Get cells to plot.
 
@@ -377,7 +382,7 @@ top_markers[, cluster := factor(cluster, levels = c(
 	"TA", "early secretory/stem", "early EEC", "EEC", "early goblet", "goblet",
 	"PLC", "Enterocyte", "Cancer/misc 1", "Cancer/misc 2"
 ))]
-top_markers <- top_markers[order(cluster, p_val_adj)]
+top_markers <- top_markers[order(cluster, -avg_log2FC)]
 
 top_markers <- top_markers[, head(.SD, 5), by = cluster]
 top_markers <- top_markers[["gene"]]
@@ -386,7 +391,7 @@ top_markers <- top_markers[["gene"]]
 
 p <- DoHeatmap(
 	seurat_integrated, features = top_markers, group.by = "custom_clusters",
-	assay = "RNA", angle = 90, cells = select_cells
+	assay = "SCT", slot = "data", angle = 90, cells = select_cells
 ) +
 	scale_fill_viridis_c()
 
@@ -404,7 +409,7 @@ seurat_subset <- subset(
 
 dot_colors <- wes_palette("Zissou1", 100, type = "continuous")
 
-p <- DotPlot(seurat_subset, assay = "RNA", features = top_markers) +
+p <- DotPlot(seurat_subset, assay = "SCT", features = top_markers, scale = FALSE) +
 	coord_flip() +
 	theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
 	scale_color_gradientn(colors = dot_colors)
