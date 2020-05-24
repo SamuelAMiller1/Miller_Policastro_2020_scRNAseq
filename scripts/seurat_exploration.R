@@ -509,3 +509,18 @@ p <- ggplot(merged, aes(x = orig.ident, y = Gene_scaled_UMI)) +
 
 pdf(file.path("results", "gene_plots", "targeted_genes_boxplot.pdf"), height = 8, width = 4)
 p; dev.off()
+
+#############################
+## Differential Expression ##
+#############################
+
+options(future.globals.maxSize = 10000 * 1024 ^2)
+plan("multiprocess", workers = 6)
+
+## COLON_1 vs. HT29_EV
+
+HT29_goblet <- FindMarkers(
+	subset(seurat_integrated, subset = custom_clusters == "goblet"),
+	assay = "SCT", slot = "data", ident.1 = "HT29_EV", ident.2 = "COLON_1",
+	group.by = "orig.ident"
+)
