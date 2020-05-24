@@ -3,8 +3,7 @@
 ##
 ## singularity shell -eCB `pwd` -H `pwd` scrnaseq_software_seurat_velocytor_0.3.sif
 ##
-## . /opt/conda/etc/profile.d/conda.sh
-## conda activate seurat; R
+## . /opt/conda/etc/profile.d/conda.sh && conda activate seurat && R
 
 library("Seurat")
 library("tidyverse")
@@ -34,16 +33,27 @@ seurat_integrated <- readRDS(file.path("results", "r_objects", "seurat_integrate
 ## Marker Genes ##
 ##################
 
-## Run the scripts seurat_marker_genes.sh first.
+options(future.globals.maxSize = 10000 * 1024 ^2)
+plan("multiprocess", workers = 6)
+
+## Find Markers
+## ----------
+
+Idents(seurat_integrated) <- "integrated_snn_res.0.6"
+
+markers <- FindAllMarkers(
+	seurat_integrated, assay = "SCT", slot = "data", min.pct = 0.25,
+	return.thresh = 0.05, logfc.threshold = log(1.5)
+)
+
+saveRDS(markers, file.path("results", "r_objects", "markers.RDS"))
 
 ## Load and prepare marker list.
 
-markers <- readRDS(file.path("results", "r_objects", "markers.RDS"))
 setDT(markers)
-
 markers <- markers[p_val_adj < 0.05]
 markers[, c("avg_log2FC", "cluster") := list(log2(exp(avg_logFC)), str_c("cluster_", cluster))]
-markers <- markers[order(p_val_adj)]
+markers <- markers[order(cluster, -avg_log2FC)]
 
 ## Split the list based on cluster and save results.
 
@@ -56,7 +66,7 @@ if (!dir.exists(file.path("results", "marker_tables"))) {
 iwalk(markers, function(x, y) {
         file_name <- file.path("results", "marker_tables", str_c("markers_", y, ".tsv"))
         fwrite(x, file_name, quote = FALSE, sep = "\t", row.names = FALSE, col.names = TRUE)
-}
+})
 
 
 ##############################
