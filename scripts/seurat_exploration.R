@@ -567,6 +567,7 @@ fwrite(
 
 sec_tumor <- read_xlsx(file.path("resources", "Secretory_clusters_secreted_peptide_comparison.xlsx"))
 setDT(sec_tumor)
+setnames(sec_tumor, old = "Tumor-associated", "tumor_associated")
 
 ## Get expression values for the secreted tumor factors.
 
@@ -587,7 +588,10 @@ exp_data <- melt(
 meta_data <- as.data.table(seurat_integrated[[]], keep.rownames = "cell_id")
 
 merged <- merge(meta_data, exp_data, by = "cell_id", all.x = TRUE)
-merged <- merged[orig.ident %in% c("COLON_1", "HT29_EV", "H508_EV")]
+merged <- merged[
+	orig.ident %in% c("COLON_1", "HT29_EV", "H508_EV") &
+	custom_clusters %in% c("early EEC", "EEC", "goblet")
+]
 
 ## Merge back in the tumor secratory status info.
 
@@ -598,6 +602,27 @@ merged <- merge(merged, sec_tumor, all.x = TRUE, by = "gene")
 ## Plot the Data
 ## ----------
 
-p <- ggplot(merged, aes(x = type, y = norm_counts, color = "Tumor-associated")) +
-	geom_boxplot() +
-	facet_wrap(gene ~ ., ncol = 6, scales = "free")
+merged[, c("gene", "custom_clusters") := list(
+	factor(gene, levels = sec_tumor[["gene"]]),
+	factor(custom_clusters, levels = c("early EEC", "EEC", "goblet"))
+)]
+
+p <- ggplot(merged, aes(x = custom_clusters, y = norm_counts, fill = custom_clusters)) +
+	geom_violin() +
+	theme_minimal() +
+	theme(
+		strip.text.y = element_text(angle = 0),
+		axis.text.x = element_blank(),
+		axis.ticks.x = element_blank()
+	) +
+	facet_grid(gene ~ ., scales = "free") +
+	scale_fill_manual(values = wes_palette("Zissou1", 3, type = "continuous"))
+
+if (!dir.exists(file.path("results", "secreted"))) {
+        dir.create(file.path("results", "secreted"))
+}
+
+ggsave(
+	file.path("results", "secreted", "secreted_tumor_factors.pdf"),
+	plot = p, device = cairo_pdf, height = 18, width = 4
+)
