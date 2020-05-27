@@ -517,10 +517,87 @@ p; dev.off()
 options(future.globals.maxSize = 10000 * 1024 ^2)
 plan("multiprocess", workers = 6)
 
-## COLON_1 vs. HT29_EV
+Idents(seurat_integrated) <- "custom_clusters"
 
-HT29_goblet <- FindMarkers(
-	subset(seurat_integrated, subset = custom_clusters == "goblet"),
-	assay = "SCT", slot = "data", ident.1 = "HT29_EV", ident.2 = "COLON_1",
-	group.by = "orig.ident"
+## Set comparisons.
+
+comparisons <- list(
+	"Early_EEC_vs_EEC" = c("early EEC", "EEC"),
+	"EEC_vs_Goblet" = c("EEC", "goblet"),
+	"Early_EEC_vs_Goblet" = c("early EEC", "goblet")
 )
+
+## Run differential expression.
+
+diff_exp <- map(comparisons, function(x) {
+	results <- FindMarkers(
+		subset(seurat_integrated, subset = orig.ident %in% c("COLON_1", "HT29_EV", "HT29_EV")),
+		assay = "SCT", slot = "data", ident.1 = x[1], ident.2 = x[2]
+	)
+	setDT(results, keep.rownames = "gene")
+	return(results)
+})
+
+## Format output.
+
+diff_exp <- rbindlist(diff_exp, idcol = "comparison")
+diff_exp <- diff_exp[p_val_adj < 0.05 & abs(avg_logFC) > log(1.5)]
+diff_exp[, avg_log2FC := log2(exp(avg_logFC))]
+diff_exp <- diff_exp[order(comparison, -avg_log2FC)]
+
+## export to table.
+
+if (!dir.exists(file.path("results", "diff_expression"))) {
+	dir.create(file.path("results", "diff_expression"))
+}
+
+fwrite(
+	diff_exp, file.path("results", "diff_expression", "early_EEV_vs_EEC_vs_Goblet.tsv"),
+	sep = "\t", col.names = TRUE, row.names = FALSE, quote = FALSE
+)
+
+############################
+## Secreted Tumor Factors ##
+############################
+
+## Prepare the Data
+## ----------
+
+## Load up secreted tumor factors.
+
+sec_tumor <- read_xlsx(file.path("resources", "Secretory_clusters_secreted_peptide_comparison.xlsx"))
+setDT(sec_tumor)
+
+## Get expression values for the secreted tumor factors.
+
+exp_data <- as.data.table(
+        Assays(seurat_integrated, "SCT")@data,
+        keep.rownames = "gene"
+)[
+        gene %in% sec_tumor[["Gene"]]
+]
+exp_data <- melt(
+        exp_data, id.vars = "gene",
+        variable.name = "cell_id",
+        value.name = "norm_counts"
+)
+
+## Add back the meta-data to the expression values.
+
+meta_data <- as.data.table(seurat_integrated[[]], keep.rownames = "cell_id")
+
+merged <- merge(meta_data, exp_data, by = "cell_id", all.x = TRUE)
+merged <- merged[orig.ident %in% c("COLON_1", "HT29_EV", "H508_EV")]
+
+## Merge back in the tumor secratory status info.
+
+setnames(sec_tumor, old = "Gene", new = "gene")
+merged <- merge(merged, sec_tumor, all.x = TRUE, by = "gene")
+
+
+## Plot the Data
+## ----------
+
+p <- ggplot(merged, aes(x = type, y = norm_counts, color = "Tumor-associated")) +
+	geom_boxplot() +
+	facet_wrap(gene ~ ., ncol = 6, scales = "free")
