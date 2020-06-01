@@ -94,7 +94,7 @@ tabPanel("Markers", tabsetPanel(
 ## Expression Navigation page.
 tabPanel("Expression", tabsetPanel(
 
-  ##Dim Plot tab.
+  ## Dim Plot tab.
   tabPanel("Dim Plot", sidebarLayout(
     # Sidebar.
     sidebarPanel(width = 2,
@@ -121,6 +121,28 @@ tabPanel("Expression", tabsetPanel(
     ),
     # Main panel
     mainPanel(width = 10, plotOutput("expdim_plot", height = 750))
+  )),
+  ## Expression Plot tab.
+  tabPanel("Expression Plot", sidebarLayout(
+    # Sidebar.
+    sidebarPanel(width = 2,
+      checkboxGroupInput(
+        "exp_samples", "Samples",
+        selected = unique(metadata[["orig.ident"]]),
+        choices = unique(metadata[["orig.ident"]])
+      ),
+      textAreaInput("exp_genes", "Genes", "KDM1A", rows = 3),
+      selectInput("exp_type", "Plot Type", c("violin", "box", "jitter"), "violin"),
+      selectInput("exp_split", "Split By", c("none", "sample", "cluster")),
+      numericInput("exp_cols", "Number of Columns", 2, 1, 10, 1),
+      selectInput(
+        "exp_palette", "Color Palette", selected = "default",
+        choices = c("default", "viridis", "wesanderson")
+      ),
+      sliderInput("exp_fontsize", "Font Size", 1, 36, 18, 1)
+    ),
+    # Main panel.
+    mainPanel(width = 10, plotOutput("exp_plot"))
   ))
 
 ))
@@ -275,6 +297,79 @@ server <- function(input, output) {
     }
   )
 
+  ## Gene expression plots.
+  exp_plot <- reactive({
+
+    # Get the expression values for the genes.
+    genes <- str_split(input$exp_genes, "\\s", simplify = TRUE)[1, ]
+    select_columns <- c("cell_id", genes)
+    exp_data <- counts[, ..select_columns]
+
+    # Merge the expression values back into the meta-data.
+    exp_data <- merge(metadata, exp_data, by = "cell_id")
+    exp_data <- melt(
+      exp_data, measure.vars = genes, variable.name = "gene",
+      value.name = "expression"
+    )
+
+    # Keep only the desired samples.
+    exp_data <- exp_data[orig.ident %in% input$exp_samples]
+
+    # Plot the expression data.
+    if (input$exp_type == "jitter") {
+      p <- ggplot(exp_data, aes(x = gene, y = expression, color = gene))
+    } else {
+      p <- ggplot(exp_data, aes(x = gene, y = expression, fill = gene))
+    }
+
+    p <- p +
+      theme_minimal() +
+      theme(text = element_text(size = input$exp_fontsize))
+
+    # Create the proper plot type.
+    if (input$exp_type == "violin") {
+      p <- p + geom_violin()
+    } else if (input$exp_type == "box") {
+      p <- p + geom_boxplot()
+    } else if (input$exp_type == "jitter") {
+      p <- p + geom_jitter()
+    }
+
+    # Split the plot.
+    if (input$exp_split != "none") {
+        if (input$exp_split == "sample") {
+          split_by <- "orig.ident"
+        } else if (input$exp_split == "cluster") {
+          split_by <- "custom_clusters"
+        }
+
+        p <- p + facet_wrap(
+          as.formula(str_c("~", split_by)),
+          ncol = input$exp_cols
+        )
+    }
+
+    # Set the proper color.
+    if (input$exp_palette == "wesanderson") {
+      wes_colors <- wes_palette("Zissou1", length(genes), "continuous")
+      if (input$exp_type == "jitter") {
+        p <- p + scale_color_manual(values = wes_colors)
+      } else {
+        p <- p + scale_fill_manual(values = wes_colors)
+      }
+    } else if (input$exp_palette == "viridis") {
+      if (input$exp_type == "jitter") {
+        p <- p + scale_color_viridis_d()
+      } else {
+        p <- p + scale_fill_viridis_d()
+      }
+    }
+
+    return(p)
+
+  })
+
+  output$exp_plot <- renderPlot({exp_plot()})
 
 }
 
