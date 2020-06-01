@@ -108,7 +108,7 @@ tabPanel("Expression", tabsetPanel(
       numericInput("expdim_cols", "Number of Columns", 2, 1, 10, 1),
       selectInput(
         "expdim_palette", "Color Palette", selected = "default",
-        choices = c("default", "viridis", "wesanderson")
+        choices = c("darkblue", "darkgreen", "darkred", "viridis", "wesanderson")
       ),
       sliderInput("expdim_pointsize", "Point Size", 0.25, 5, 0.75, 0.25),
       sliderInput("expdim_fontsize", "Font Size", 1, 36, 18, 1),
@@ -251,8 +251,8 @@ server <- function(input, output) {
     }
 
     # Set proper colors.
-    if (input$expdim_palette == "default") {
-      p <- p + scale_color_gradient(low = "lightgrey", high = "darkblue")
+    if (input$expdim_palette %in% c("darkblue", "darkred", "darkgreen")) {
+      p <- p + scale_color_gradient(low = "#e6e6e6", high = input$expdim_palette)
     } else if (input$expdim_palette == "viridis") {
       p <- p + scale_color_viridis_c()
     } else if (input$expdim_palette == "wesanderson") {
