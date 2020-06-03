@@ -2,9 +2,10 @@
 library("shiny")
 library("shinythemes")
 library("data.table")
-library("tidyverse")
 library("wesanderson")
 library("DT")
+library("stringr")
+library("ggplot2")
 
 ###############
 ## Shiny App ##
@@ -15,10 +16,18 @@ options(browser = "/bin/firefox")
 ## Load Data
 ## ----------
 
-counts <- fread(file.path("datasets", "gene_counts.tsv"))
 markers <- fread(file.path("datasets", "markers.tsv"))
 umap <- fread(file.path("datasets", "umap_embeddings.tsv"))
 metadata <- fread(file.path("datasets", "meta_data.tsv"))
+
+## Retrieve Counts
+
+get_counts <- function(genes) {
+  counts <- fread(
+    file.path("datasets", "gene_counts.tsv"),
+    select = c("cell_id", genes)
+  )
+}
 
 ## Shiny App UI
 ## ----------
@@ -142,7 +151,7 @@ tabPanel("Expression", tabsetPanel(
       sliderInput("exp_fontsize", "Font Size", 1, 36, 18, 1)
     ),
     # Main panel.
-    mainPanel(width = 10, plotOutput("exp_plot"))
+    mainPanel(width = 10, plotOutput("exp_plot", height = 750))
   ))
 
 ))
@@ -239,8 +248,7 @@ server <- function(input, output) {
   expdim_plot <- reactive({
 
     # Get the expression values for the gene.
-    select_columns <- c("cell_id", input$expdim_gene)
-    exp_data <- counts[, ..select_columns]
+    exp_data <- get_counts(input$expdim_gene)
 
     # Merge the gene expression back into the meta-data and UMAP.
     exp_data <- merge(metadata, exp_data, by = "cell_id")
@@ -302,8 +310,7 @@ server <- function(input, output) {
 
     # Get the expression values for the genes.
     genes <- str_split(input$exp_genes, "\\s", simplify = TRUE)[1, ]
-    select_columns <- c("cell_id", genes)
-    exp_data <- counts[, ..select_columns]
+    exp_data <- get_counts(genes)
 
     # Merge the expression values back into the meta-data.
     exp_data <- merge(metadata, exp_data, by = "cell_id")
@@ -318,8 +325,10 @@ server <- function(input, output) {
     # Plot the expression data.
     if (input$exp_type == "jitter") {
       p <- ggplot(exp_data, aes(x = gene, y = expression, color = gene))
-    } else {
+    } else if (input$exp_type == "box") {
       p <- ggplot(exp_data, aes(x = gene, y = expression, fill = gene))
+    } else {
+      p <- ggplot(exp_data, aes(x = gene, y = expression, fill = gene, color = gene))
     }
 
     p <- p +
@@ -354,14 +363,22 @@ server <- function(input, output) {
       wes_colors <- wes_palette("Zissou1", length(genes), "continuous")
       if (input$exp_type == "jitter") {
         p <- p + scale_color_manual(values = wes_colors)
-      } else {
+      } else if (input$exp_type == "box") {
         p <- p + scale_fill_manual(values = wes_colors)
+      } else {
+        p <- p +
+          scale_fill_manual(values = wes_colors) +
+          scale_color_manual(values = wes_colors)
       }
     } else if (input$exp_palette == "viridis") {
       if (input$exp_type == "jitter") {
         p <- p + scale_color_viridis_d()
-      } else {
+      } else if (input$exp_type == "box") {
         p <- p + scale_fill_viridis_d()
+      } else {
+        p <- p +
+          scale_fill_viridis_d() +
+          scale_color_viridis_d()
       }
     }
 
