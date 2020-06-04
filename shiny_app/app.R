@@ -6,6 +6,10 @@ library("wesanderson")
 library("DT")
 library("stringr")
 library("ggplot2")
+library("dplyr")
+library("dbplyr")
+library("RSQLite")
+library("DBI")
 
 ###############
 ## Shiny App ##
@@ -16,17 +20,35 @@ options(browser = "/bin/firefox")
 ## Load Data
 ## ----------
 
+## Load markers, UMAP, cell meta-data, and gene counts.
+
 markers <- fread(file.path("datasets", "markers.tsv"))
 umap <- fread(file.path("datasets", "umap_embeddings.tsv"))
 metadata <- fread(file.path("datasets", "meta_data.tsv"))
 
+con <- dbConnect(SQLite(), "datasets/gene_counts.sqlite")
+counts <- tbl(con, "counts")
+
+## Making SQLite database for gene counts.
+
+#counts <- fread(file.path("datasets", "gene_counts.tsv"))
+#counts <- melt(
+#  counts, id.vars = "cell_id", variable.name = "gene",
+#  value.name = "exp"
+#)
+
+#con <- dbConnect(SQLite(), "datasets/gene_counts.sqlite")
+#copy_to(con, counts, "counts", temporary = FALSE, indexes = list("gene"))
+#dbDisconnect(con)
+
 ## Retrieve Counts
 
 get_counts <- function(genes) {
-  counts <- fread(
-    file.path("datasets", "gene_counts.tsv"),
-    select = c("cell_id", genes)
-  )
+  gene_counts <- counts %>%
+    filter(gene %in% genes) %>%
+    collect %>%
+    as.data.table %>%
+    dcast(cell_id ~ gene)
 }
 
 ## Shiny App UI
