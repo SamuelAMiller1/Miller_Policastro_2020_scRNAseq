@@ -626,3 +626,60 @@ ggsave(
 	file.path("results", "secreted", "secreted_tumor_factors.pdf"),
 	plot = p, device = cairo_pdf, height = 18, width = 4
 )
+
+########################
+## Differential Genes ##
+########################
+
+## Set up comparisons.
+
+compare_clusts <- c("early EEC", "EEC", "goblet")
+compare_clusts <- gtools::combinations(3, 2, compare_clusts)
+compare_clusts <- as.data.table(as.data.frame(compare_clusts))
+setnames(compare_clusts, old = 1:2, new = sprintf("clust_%s", 1:2))
+
+## Subset samples to analyze.
+
+seurat_subset <- subset(
+	seurat_integrated, subset =
+		orig.ident %in% c("COLON_1", "HT29_EV", "H508_EV") &
+		custom_clusters %in% c("early EEC", "EEC", "goblet")
+)
+
+Idents(seurat_subset) <- "custom_clusters"
+
+## Differential expression comparisons.
+
+options(future.globals.maxSize = 10000 * 1024 ^2)
+plan("multiprocess", workers = 4)
+
+diff_markers <- pmap(compare_clusts, function(clust_1, clust_2) {
+	diff_markers <- FindMarkers(
+		seurat_subset, assay = "SCT", slot = "data", logfc.threshold = log(1.5),
+		min.pct = 0.25, ident.1 = clust_1, ident.2 = clust_2
+	)
+	return(as.data.table(diff_markers, keep.rownames = "gene"))
+})
+
+compare_clusts[, 
+	comp_name := str_c(clust_1, clust_2, sep = "_vs_"),
+	by = seq_len(nrow(compare_clusts))
+]
+
+names(diff_markers) <- compare_clusts[["comp_name"]]
+names(diff_markers) <- str_replace(names(diff_markers), " ", "_")
+
+## Format table for output.
+
+diff_markers <- rbindlist(diff_markers, idcol = "comparison")
+
+diff_markers[, avg_log2FC := log2(exp(avg_logFC))]
+diff_markers <- diff_markers[abs(avg_log2FC) > log2(1.5) & p_val_adj < 0.05]
+setorder(diff_markers, comparison, -avg_log2FC)
+
+## Save table.
+
+fwrite(
+	diff_markers, file.path("results", "custom_clusters", "diff_markers_table.tsv"),
+	sep = "\t", col.names = TRUE, row.names = FALSE, quote = FALSE
+)
