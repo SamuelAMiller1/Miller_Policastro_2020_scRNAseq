@@ -12,6 +12,9 @@ library("future")
 library("wesanderson")
 library("readxl")
 library("scProportionTest")
+library("clusterProfiler")
+library("ReactomePA")
+library("org.Hs.eg.db")
 
 ## Variables.
 
@@ -631,6 +634,9 @@ ggsave(
 ## Differential Genes ##
 ########################
 
+## Get Differential Genes
+## ----------
+
 ## Set up comparisons.
 
 compare_clusts <- c("early EEC", "EEC", "goblet")
@@ -682,4 +688,94 @@ setorder(diff_markers, comparison, -avg_log2FC)
 fwrite(
 	diff_markers, file.path("results", "custom_clusters", "diff_markers_table.tsv"),
 	sep = "\t", col.names = TRUE, row.names = FALSE, quote = FALSE
+)
+
+## Go Analysis
+## ----------
+
+## Go enrichment.
+
+diff_markers[, change := fifelse(avg_log2FC < 0, "down", "up")]
+
+go_enrichment <- compareCluster(
+	gene ~ comparison + change, data = diff_markers, fun = "enrichGO",
+	OrgDb = "org.Hs.eg.db", keyType = "SYMBOL", ont = "BP", qvalueCutoff = 0.05
+)
+
+simple_go <- simplify(go_enrichment)
+
+## Export table of GO results.
+
+go_table <- as.data.table(go_enrichment)
+
+fwrite(
+	go_table,
+	file.path("results", "custom_clusters", "enrichment", "diff_markers_GO_table.tsv"),
+	sep = "\t", col.names = TRUE, row.names = FALSE, quote = FALSE
+)
+
+simple_go_table <- as.data.table(simple_go)
+
+fwrite(
+        simple_go_table,
+	file.path("results", "custom_clusters", "enrichment", "diff_markers_simple_GO_table.tsv"),
+        sep = "\t", col.names = TRUE, row.names = FALSE, quote = FALSE
+)
+
+## Plot GO results.
+
+p <- dotplot(go_enrichment, x = ~change, showCategory = 10) +
+	facet_grid(~comparison)
+
+ggsave(
+	file.path("results", "custom_clusters", "enrichment", "diff_markers_GO_dotplot.pdf"),
+	plot = p, device = cairo_pdf, height = 8, width = 16
+)
+
+p <- dotplot(simple_go, x = ~change, showCategory = 10) +
+        facet_grid(~comparison)
+
+ggsave(
+        file.path("results", "custom_clusters", "enrichment", "diff_markers_simple_GO_dotplot.pdf"),
+        plot = p, device = cairo_pdf, height = 8, width = 16
+)
+
+## Pathway Analysis
+## ----------
+
+## Change to Entrez IDs.
+
+entrez <- bitr(
+	diff_markers[["gene"]], fromType = "SYMBOL", toType = "ENTREZID",
+	OrgDb = "org.Hs.eg.db"
+)
+setDT(entrez)
+setnames(entrez, old = "SYMBOL", new = "gene")
+
+entrez <- merge(entrez, diff_markers, by = "gene")
+
+## Reactome pathway.
+
+rp_enrichment <- compareCluster(
+	ENTREZID ~ comparison + change, data = entrez, fun = "enrichPathway",
+	organism = "human", qvalueCutoff = 0.05, readable = TRUE	
+)
+
+## Export table of Reactone DB results.
+
+rp_table <- as.data.table(rp_enrichment)
+
+fwrite(
+	rp_table, file.path("results", "custom_clusters", "enrichment", "diff_markers_pathway_table.tsv"),
+	sep = "\t", col.names = TRUE, row.names = FALSE, quote = FALSE
+)
+
+## Plot pathway results.
+
+p <- dotplot(rp_enrichment, x = ~change, showCategory = 10) +
+        facet_grid(~comparison)
+
+ggsave(
+        file.path("results", "custom_clusters", "enrichment", "diff_markers_pathway_dotplot.pdf"),
+        plot = p, device = cairo_pdf, height = 8, width = 16
 )
