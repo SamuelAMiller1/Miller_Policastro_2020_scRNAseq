@@ -779,3 +779,117 @@ ggsave(
         file.path("results", "custom_clusters", "enrichment", "diff_markers_pathway_dotplot.pdf"),
         plot = p, device = cairo_pdf, height = 8, width = 16
 )
+
+##################################
+## ATOH1 and NEUROG3 Expression ##
+##################################
+
+## Prepare the counts.
+
+counts <- Assays(seurat_integrated, "SCT")@counts
+counts <- counts[which(rownames(counts) %in% c("ATOH1", "NEUROG3")), ]
+counts <- as.data.table(t(as.matrix(counts)), keep.rownames = "cell_id")
+setkey(counts, "cell_id")
+
+## Prepare meta-data.
+
+metadata <- as.data.table(seurat_integrated[[]], keep.rownames = "cell_id")
+metadata <- metadata[, .(cell_id, orig.ident, custom_clusters)]
+setkey(metadata, "cell_id")
+
+## Merge the meta-data into the counts.
+
+counts <- counts[metadata]
+
+## Annotate expression status.
+
+counts[, status := case_when(
+	ATOH1 > 0 & NEUROG3 > 0 ~ "NEUROG3+_ATOH1+",
+	ATOH1 > 0 & NEUROG3 == 0 ~ "NEUROG-_ATOH1+",
+	ATOH1 == 0 & NEUROG3 > 0 ~ "NEUROG+_ATOH1-",
+	ATOH1 == 0 & NEUROG3 == 0 ~ "NEUROG3-_ATOH1-" 
+)]
+
+counts <- counts[, .(status_count = .N), by = .(orig.ident, status)]
+counts <- counts[
+	CJ(orig.ident = unique(counts$orig.ident), status = unique(counts$status)),
+	on = .(orig.ident, status)
+]
+counts[is.na(status_count), status_count := 0]
+setorder(counts, orig.ident, status)
+
+counts[, status_frac := status_count / sum(status_count), by = orig.ident]
+
+## Export to table.
+
+fwrite(
+	counts, file.path("results", "custom_clusters", "ATOH1_vs_NEUROG3.tsv"),
+	sep = "\t", col.names = TRUE, row.names = FALSE, quote = FALSE
+)
+
+##############################
+## Selected Gene Expression ##
+##############################
+
+select_genes <- c(
+	"NEUROG3", "PAX4", "ARX", "RCOR2",
+	"NEUROD1", "CHGA", "PYY", "FEV"
+)
+
+## Prepare the counts.
+
+counts <- Assays(seurat_integrated, "SCT")@data
+counts <- counts[which(rownames(counts) %in% select_genes), ]
+counts <- as.data.table(t(as.matrix(counts)), keep.rownames = "cell_id")
+setkey(counts, "cell_id")
+
+## Prepare meta-data.
+
+metadata <- as.data.table(seurat_integrated[[]], keep.rownames = "cell_id")
+metadata <- metadata[, .(cell_id, orig.ident, custom_clusters)]
+setkey(metadata, "cell_id")
+
+## Merge the meta-data into the counts.
+
+counts <- counts[metadata]
+
+## Keep only COLON_1, HT29_EV, and H508_EV.
+
+counts <- counts[orig.ident %in% c("COLON_1", "HT29_EV", "H508_EV")]
+
+## Melting the counts.
+
+counts <- melt(
+	counts, id.vars = c("cell_id", "orig.ident", "custom_clusters"),
+	measure.vars = select_genes, variable.name = "gene",
+	value.name = "Log2_Normalized_Counts"
+)
+
+## Getting the fraction of cells per sample that express the gene.
+
+counts[, exp_status := Log2_Normalized_Counts > 0]
+counts <- counts[,
+	.(perc_exp = (sum(exp_status) / .N) * 100),
+	by = .(orig.ident, gene)
+]
+
+## Setting the correct factor order for the genes and sample names.
+
+counts[, c("gene", "orig.ident") := list(
+	factor(gene, levels = select_genes),
+	factor(orig.ident, levels = c("HT29_EV", "H508_EV", "COLON_1"))
+)]
+
+## Generating the bar plot.
+
+wes_colors <- as.character(wes_palette("Zissou1", 3, "continuous"))
+
+p <- ggplot(counts, aes(x = orig.ident, y = perc_exp)) +
+	geom_col(aes(fill = orig.ident), width = 0.75) +
+	theme_minimal() +
+	facet_wrap(~ gene, scales = "free", ncol = 1) +
+	theme(axis.text.x = element_blank()) +
+	scale_fill_manual(values = wes_colors)
+
+pdf(file.path("results", "custom_clusters", "select_genes_barplot.pdf"), height = 12, width = 4)
+p; dev.off()
