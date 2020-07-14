@@ -15,10 +15,11 @@ conda update -n base -y -c defaults conda
 
 conda create -n seurat -y -c conda-forge -c bioconda -c defaults -c tdido \
 boost python-igraph hdf5 openmpi openblas leidenalg \
-r-tidyverse r-devtools r-data.table r-seurat r-clustree r-wesanderson r-biocmanager \
+r-tidyverse r-devtools r-data.table r-seurat r-clustree \
+r-wesanderson r-biocmanager r-monocle3 \
 bioconductor-genomicranges bioconductor-genomicfeatures bioconductor-rtracklayer \
 bioconductor-pcamethods bioconductor-limma bioconductor-clusterprofiler \
-bioconductor-reactomepa bioconductor-org.hs.eg.db
+bioconductor-reactomepa bioconductor-org.hs.eg.db bioconductor-slingshot
 
 ## Update environment.
 
