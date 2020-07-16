@@ -42,7 +42,7 @@ samples = {
   'HT29_EV' : 'results/py_objects/HT29_EV_seurat.h5ad',
   'HT29_LSD1_KD' : 'results/py_objects/HT29_LSD1_KD_seurat.h5ad',
   'H508_EV' : 'results/py_objects/H508_EV_seurat.h5ad',
-  'H508_LSD_KD' : 'results/py_objects/HT29_EV_seurat.h5ad'
+  'H508_LSD1_KD' : 'results/py_objects/H508_LSD1_KD_seurat.h5ad'
 }
 
 samples = {x:scv.read(y) for x,y in samples.items()}
@@ -55,7 +55,7 @@ for key in samples.keys():
 ## Preprocess the data.
 
 for key in samples.keys():
-	scv.pp.filter_and_normalize(samples[key], min_shared_counts=20, n_top_genes=2000)
+	scv.pp.filter_and_normalize(samples[key], min_shared_counts=20, n_top_genes=3000)
 	scv.pp.moments(samples[key], n_pcs=30, n_neighbors=30)
 
 ## Calculate RNA velocities.
