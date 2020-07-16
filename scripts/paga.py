@@ -55,7 +55,7 @@ for key in samples.keys():
 ## Preprocess the data.
 
 for key in samples.keys():
-	scv.pp.filter_and_normalize(samples[key], min_shared_counts=20, n_top_genes=3000)
+	scv.pp.filter_and_normalize(samples[key], min_shared_counts=20, n_top_genes=2000)
 	scv.pp.moments(samples[key], n_pcs=30, n_neighbors=30)
 
 ## Calculate RNA velocities.
@@ -89,7 +89,7 @@ for key,value in samples.items():
 	  figsize = (10, 10), size = 50, dpi = 300
 	)
 
-## Plot RNA velocity grids.
+## Plot RNA velocity arrows.
 
 outdir = 'results/trajectory/velocity/velocity_arrows'
 if not os.path.exists(outdir):
