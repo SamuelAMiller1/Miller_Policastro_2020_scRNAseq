@@ -7,33 +7,9 @@ from pathlib import Path
 import pickle
 import os
 
-## Regular Data
-## ----------
-
-## Open the file.
-
-#results = Path("results/py_objects/normal_seurat.h5ad")
-#sc_data = sc.read_h5ad(results)
-
-#sc_data.obs = sc_data.obs.astype('category')
-
-## preprocess data.
-
-#sc.tl.pca(sc_data, svd_solver='arpack')
-#sc.pp.neighbors(sc_data, n_neighbors=4, n_pcs=30)
-
-## Run PAGA.
-
-#sc.tl.paga(sc_data, groups='integrated_snn_res.0.6')
-#sc.pl.paga_compare(sc_data)
-
-## Recompute embedding using PAGA.
-
-#sc.tl.draw_graph(sc_data, init_pos='paga')
-#sc.pl.paga_compare(sc_data)
-
-## Regular Modeling
-## ----------
+##################
+## RNA Velocity ##
+##################
 
 ## Preparing sample data.
 
@@ -63,16 +39,6 @@ for key in samples.keys():
 for key in samples.keys():
 	scv.tl.velocity(samples[key])
 	scv.tl.velocity_graph(samples[key])
-
-## Save the velocities.
-
-with open('results/py_objects/velocities.pickle', 'wb') as handle:
-	pickle.dump(samples, handle)
-
-## Load the velocities if required.
-
-with open('results/py_objects/velocities.pickle', 'rb') as handle:
-	samples = pickle.load(handle)
 
 ## Plot RNA velocity streams.
 
@@ -172,3 +138,66 @@ for key,value in samples.items():
 	  dpi = 200, show = False, figsize = (10, 10), title = key, size = 50,
 	  save = '%s.png' % key
 	)
+
+## Get important genes.
+
+outdir = 'results/trajectory/velocity/velocity_genes'
+if not os.path.exists(outdir):
+        os.makedirs(outdir)
+
+for value in samples.values():
+	scv.tl.rank_velocity_genes(value, groupby = 'integrated_snn_res.0.6', min_corr=.3)
+
+for key,value in samples.items():
+	df = scv.DataFrame(value.uns['rank_velocity_genes']['names'])
+	df.to_csv("{}/{}.tsv".format(outdir, key), sep = '\t', header = True, index = False)
+
+## Save the velocities.
+
+with open('results/py_objects/velocities.pickle', 'wb') as handle:
+        pickle.dump(samples, handle)
+
+## Load the velocities if required.
+
+with open('results/py_objects/velocities.pickle', 'rb') as handle:
+        samples = pickle.load(handle)
+
+#####################
+## Dynamical Model ##
+#####################
+
+## Preparing sample data.
+
+samples = {
+  'COLON_1' : 'results/py_objects/COLON_1_seurat.h5ad',
+  'HT29_EV' : 'results/py_objects/HT29_EV_seurat.h5ad',
+  'HT29_LSD1_KD' : 'results/py_objects/HT29_LSD1_KD_seurat.h5ad',
+  'H508_EV' : 'results/py_objects/H508_EV_seurat.h5ad',
+  'H508_LSD1_KD' : 'results/py_objects/H508_LSD1_KD_seurat.h5ad'
+}
+
+samples = {x:scv.read(y) for x,y in samples.items()}
+
+## Change the metadata to categorical.
+
+for key in samples.keys():
+        samples[key].obs = samples[key].obs.astype('category')
+
+## Preprocess the data.
+
+for value in samples.values():
+        scv.pp.filter_and_normalize(value, min_shared_counts=20, n_top_genes=3000)
+        scv.pp.moments(value, n_pcs=30, n_neighbors=30)
+
+## Calculate RNA velocities.
+
+for value in samples.values():
+	scv.tl.recover_dynamics(value)
+        scv.tl.velocity(value, mode = 'dynamical')
+        scv.tl.velocity_graph(value)
+
+## Save the velocities.
+
+with open('results/py_objects/velocities_dynamical.pickle', 'wb') as handle:
+        pickle.dump(samples, handle)
+
