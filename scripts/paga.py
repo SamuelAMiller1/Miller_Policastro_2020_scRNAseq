@@ -139,8 +139,26 @@ for key,value in samples.items():
     scv.tl.paga(value, groups = clusters)
     scv.pl.paga(
       value, basis = 'umap', color = clusters,
-      dpi = 200, show = False, figsize = (10, 10), title = key, size = 50,
+      dpi = 300, show = False, figsize = (10, 10), title = key, size = 50,
       save = '%s.png' % key
+    )
+
+## Export UMAP plots.
+
+outdir = 'results/trajectory/velocity/velocity_umap'
+if not os.path.exists(outdir):
+    os.makedirs(outdir)
+
+scv.settings.figdir = outdir
+
+for key,value in samples.items():
+    scv.pl.umap(
+      value, color = clusters, show = False, figsize = (10, 10), title = key,
+      size = 50, save = '{}.png'.format(key)
+    )
+    scv.pl.umap(
+      value, show = False, figsize = (10, 10), title = key,
+      size = 50, save = '{}_nocolor.png'.format(key)
     )
 
 ## Get important genes.
@@ -208,9 +226,8 @@ for key,value in samples.items():
 
 ## Cell fate trace
 
-select_clusts = ['8', '13', '9']
-select_clusts = ['17', '10']
-clusts = {x:samples['HT29_EV'].obs[samples['HT29_EV'].obs[clusters] == x].index for x in select_clusts}
+select_clusts = ['8', '13', '9', '17', '10']
+clusts = {x:samples['H508_EV'].obs[samples['H508_EV'].obs[clusters] == x].index for x in select_clusts}
 
 for key,value in clusts.items():
     outdir = 'results/trajectory/velocity/velocity_trace/cluster_{}'.format(key)
@@ -218,11 +235,11 @@ for key,value in clusts.items():
         os.makedirs(outdir)
     scv.settings.figdir = outdir
     for c in value:
-        cell = samples['HT29_EV'].obs.index.get_loc(c)
-        x,y = scv.utils.get_cell_transitions(samples['HT29_EV'], basis='umap', starting_cell=cell)
-        ax = scv.pl.umap(samples['HT29_EV'], show=False)
+        cell = samples['H508_EV'].obs.index.get_loc(c)
+        x,y = scv.utils.get_cell_transitions(samples['H508_EV'], basis='umap', starting_cell=cell)
+        ax = scv.pl.umap(samples['H508_EV'], show=False)
         scv.pl.scatter(
-          samples['HT29_EV'], x=x, y=y, s=120, c='ascending', cmap='gnuplot',
+          samples['H508_EV'], x=x, y=y, s=120, c='ascending', cmap='gnuplot',
           ax=ax, title = key, show = False,
           save = 'cluster{}_cell{}.png'.format(key, cell)
         )
@@ -312,6 +329,11 @@ for value in samples.values():
 with open('results/py_objects/velocities_dynamical.pickle', 'wb') as handle:
     pickle.dump(samples, handle)
 
+## Load the velocities if required.
+
+with open('results/py_objects/velocities_dynamical.pickle', 'rb') as handle:
+    samples = pickle.load(handle)
+
 ## Plot RNA velocity streams.
 
 outdir = 'results/trajectory/velocity_dynamical/velocity_plots'
@@ -358,6 +380,11 @@ for key,value in samples.items():
       size = 50, show = False, dpi = 300, figsize = (10, 10),
       title = key, save = '{}.png'.format(key)
     )
+
+## Top drivers.
+
+top_genes = samples['HT29_EV'].var['fit_likelihood'].sort_values(ascending=False).index
+scv.pl.scatter(samples['HT29_EV'], basis=top_genes[:15], ncols=5, frameon=False)
 
 ## Top likelyhood genes.
 
