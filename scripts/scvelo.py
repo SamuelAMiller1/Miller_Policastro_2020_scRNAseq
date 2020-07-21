@@ -6,6 +6,7 @@ import scvelo as scv
 from pathlib import Path
 import pickle
 import os
+import cellrank as cr
 
 ## Variables.
 
@@ -210,19 +211,28 @@ for key,value in diff_samples.items():
 
 ## Targeted gene plot.
 
-outdir = 'results/trajectory/velocity/velocity_targeted_genes'
-if not os.path.exists(outdir):
-    os.makedirs(outdir)
+genes = {
+  'select' : ['MUC2', 'TFF3'],
+  'EEC' : [
+    'SETBP1', 'RGS7', 'STI8', 'RIMBP2', 'MAP2', 'CACNA1A',
+    'CBFA2T2', 'MY12', 'NEURL1', 'TSPAN5', 'RFX3', 'DOCK4'
+  ],
+  'Goblet' : [
+    'PNPLA7', 'GMDS', 'SEC24D', 'MCTP2', 'CAMK2D', 'CBFA2T3',
+    'CAPN9', 'TNFAIP8', 'SLC22A23', 'BCAS1'
+  ] 
+}
 
-scv.settings.figdir = outdir
-
-genes = ['MUC2', 'TFF3']
-
-for key,value in samples.items():
-    scv.pl.velocity(
-      value, genes, dpi = 300, show = False, figsize = (10, 10),
-      size = 20, save = '{}_{}_{}.png'.format(key, genes[0], genes[1])
-    )
+for key,value in (samples.items()):
+    for group,genelist in genes.items():
+        outdir = 'results/trajectory/velocity/velocity_targeted_genes/{}'.format(group)
+        if not os.path.exists(outdir): os.makedirs(outdir)
+        scv.settings.figdir = outdir
+        for gene in genelist:
+            scv.pl.velocity(
+              value, gene, dpi = 300, show = False, figsize = (10, 10),
+              size = 25, save = '{}_{}.png'.format(key, gene)
+            )
 
 ## Cell fate trace
 
@@ -244,9 +254,48 @@ for key,value in clusts.items():
           save = 'cluster{}_cell{}.png'.format(key, cell)
         )
 
-###################
+###############
+## Cell Rank ##
+###############
+
+## Recompute the velocities.
+
+for value in samples.values():
+    scv.tl.velocity_graph(value, mode_neighbors = 'connectivities', compute_uncertainties = True)
+
+## Identify final states.
+
+for value in samples.values():
+    cr.tl.final_states(
+      value, cluster_key = clusters, weight_connectivities = 0.2,
+      use_velocity_uncertainty = True
+    )
+
+## Identify root states.
+
+for value in samples.values():
+    cr.tl.root_states(value, cluster_key = clusters)
+
+## Compute the fate maps.
+
+for value in samples.values():
+    cr.tl.lineages(value, cluster_key = clusters)
+
+## Find gene importance.
+
+model = cr.ul.models.GamMGCVModel(adata, n_splines=5, sp=100)
+
+for value in samples.values():
+    cr.tl.gene_importance(
+
+## PAGA Pie
+
+cr.pl.cluster_fates(samples['HT29_EV'], cluster_key=clusters, mode='paga_pie', node_size_scale=1,
+                    title='', edge_width_scale=1, max_edge_width=2, threshold=0.2, basis='umap')
+
+####################
 ## Joint Analysis ##
-###################
+####################
 
 ## Concatenate related samples.
 
@@ -267,6 +316,49 @@ for value in joint.values():
 for key,value in joint.items():
     df = scv.DataFrame(value.uns['rank_velocity_genes']['names'])
     df.to_csv("{}/{}.tsv".format(outdir, key), sep = '\t', header = True, index = False)
+
+## Make plots for the important genes.
+
+for key,value in joint.items():
+    outdir = 'results/trajectory/velocity_joint/velocity_gene_plots/{}'.format(key)
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    df = scv.DataFrame(value.uns['rank_velocity_genes']['names'])
+    scv.settings.figdir = outdir
+    for cluster in df.columns:
+        top_genes = df[cluster][21:40]
+        scv.pl.velocity(
+          value, top_genes, show = False, figsize = (10, 10), dpi = 300,
+          size = 50, save = 'cluster_{}.png'.format(cluster), ncols = 3
+        )
+
+## Make plots for specific genes.
+
+genes = {
+  'select' : ['MUC2', 'TFF3'],
+  'EEC' : [
+    'SETBP1', 'RGS7', 'STI8', 'RIMBP2', 'MAP2', 'CACNA1A',
+    'CBFA2T2', 'MY12', 'NEURL1', 'TSPAN5', 'RFX3', 'DOCK4'
+  ],
+  'Goblet' : [
+    'PNPLA7', 'GMDS', 'SEC24D', 'MCTP2', 'CAMK2D', 'CBFA2T3',
+    'CAPN9', 'TNFAIP8', 'SLC22A23', 'BCAS1'
+  ]  
+}
+
+for key,value in (joint.items()):
+    for group,genelist in genes.items():
+        outdir = 'results/trajectory/velocity_joint/velocity_targeted_genes/{}'.format(group)
+        if not os.path.exists(outdir): os.makedirs(outdir)
+        scv.settings.figdir = outdir
+        for gene in genelist:
+            try:
+                scv.pl.velocity(
+                  value, gene, dpi = 300, show = False, figsize = (10, 10),
+                  size = 25, save = '{}_{}.png'.format(key, gene)
+                )
+            except KeyError:
+                next
 
 ## Genes different between EV and LSD1_KD.
 
