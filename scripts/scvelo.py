@@ -283,10 +283,10 @@ for value in samples.values():
 
 ## Find gene importance.
 
-model = cr.ul.models.GamMGCVModel(adata, n_splines=5, sp=100)
-
 for value in samples.values():
     cr.tl.gene_importance(
+
+
 
 ## PAGA Pie
 
@@ -472,6 +472,39 @@ for key,value in samples.items():
       size = 50, show = False, dpi = 300, figsize = (10, 10),
       title = key, save = '{}.png'.format(key)
     )
+
+## Plot velocity speed and coherence.
+
+outdir = 'results/trajectory/velocity_dynamical/velocity_speed_coherence'
+if not os.path.exists(outdir):
+    os.makedirs(outdir)
+
+scv.settings.figdir = outdir
+
+metrics = ['velocity_length', 'velocity_confidence']
+for key,value in samples.items():
+    scv.tl.velocity_confidence(value)
+    scv.pl.scatter(
+      value, c = metrics, cmap = 'coolwarm', perc=[5, 95],
+      size = 50, show = False, dpi = 300, figsize = (10, 10),
+      save = '{}.png'.format(key)
+    )
+
+## Plot cell connections.
+
+outdir = 'results/trajectory/velocity_dynamical/velocity_connections'
+if not os.path.exists(outdir):
+    os.makedirs(outdir)
+
+scv.settings.figdir = outdir
+
+for key,value in samples.items():
+    scv.pl.velocity_graph(
+      value, threshold = .2, size = 50, show = False, dpi = 300,
+      figsize = (10, 10), color = clusters,
+      save = '{}.png'.format(key), title = key
+    )
+
 
 ## Top drivers.
 
