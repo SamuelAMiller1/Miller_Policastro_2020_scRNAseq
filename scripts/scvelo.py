@@ -337,8 +337,8 @@ for key,value in joint.items():
 genes = {
   'select' : ['MUC2', 'TFF3'],
   'EEC' : [
-    'SETBP1', 'RGS7', 'STI8', 'RIMBP2', 'MAP2', 'CACNA1A',
-    'CBFA2T2', 'MY12', 'NEURL1', 'TSPAN5', 'RFX3', 'DOCK4'
+    'SETBP1', 'RGS7', 'ST18', 'RIMBP2', 'MAP2', 'CACNA1A',
+    'CBFA2T2', 'MYT1', 'NEURL1', 'TSPAN5', 'RFX3', 'DOCK4'
   ],
   'Goblet' : [
     'PNPLA7', 'GMDS', 'SEC24D', 'MCTP2', 'CAMK2D', 'CBFA2T3',
