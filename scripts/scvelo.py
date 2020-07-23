@@ -237,7 +237,7 @@ for key,value in (samples.items()):
 ## Cell fate trace
 
 select_clusts = ['8', '13', '9', '17', '10']
-clusts = {x:samples['H508_EV'].obs[samples['H508_EV'].obs[clusters] == x].index for x in select_clusts}
+clusts = {x:samples['HT29_EV'].obs[samples['HT29_EV'].obs[clusters] == x].index for x in select_clusts}
 
 for key,value in clusts.items():
     outdir = 'results/trajectory/velocity/velocity_trace/cluster_{}'.format(key)
@@ -245,11 +245,11 @@ for key,value in clusts.items():
         os.makedirs(outdir)
     scv.settings.figdir = outdir
     for c in value:
-        cell = samples['H508_EV'].obs.index.get_loc(c)
-        x,y = scv.utils.get_cell_transitions(samples['H508_EV'], basis='umap', starting_cell=cell)
-        ax = scv.pl.umap(samples['H508_EV'], show=False)
+        cell = samples['HT29_EV'].obs.index.get_loc(c)
+        x,y = scv.utils.get_cell_transitions(samples['HT29_EV'], basis='umap', starting_cell=cell)
+        ax = scv.pl.umap(samples['HT29_EV'], show=False)
         scv.pl.scatter(
-          samples['H508_EV'], x=x, y=y, s=120, c='ascending', cmap='gnuplot',
+          samples['HT29_EV'], x=x, y=y, s=120, c='ascending', cmap='gnuplot',
           ax=ax, title = key, show = False,
           save = 'cluster{}_cell{}.png'.format(key, cell)
         )
