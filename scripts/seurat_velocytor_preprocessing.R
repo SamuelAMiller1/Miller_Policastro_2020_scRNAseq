@@ -264,6 +264,10 @@ exportFromSeurat(
 if (!dir.exists(file.path("results", "loom"))) {
 	dir.create(file.path("results", "loom"))
 }
+# There is an issue saving the graphs as a Loom currently.
+# To bypass this, we empty the graphs slot before exporting.
+
+seurat_integrated@graphs <- list() 
 
 seurat_loom <- as.loom(
 	seurat_integrated,
@@ -271,3 +275,5 @@ seurat_loom <- as.loom(
 )
 
 seurat_loom$close_all()
+
+
