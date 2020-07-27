@@ -88,7 +88,7 @@ metrics = ['velocity_length', 'velocity_confidence']
 for key,value in samples.items():
     scv.tl.velocity_confidence(value)
     scv.pl.scatter(
-      value, c = metrics, cmap = 'coolwarm', perc=[5, 95],
+      value, c = metrics, cmap = 'gnuplot', perc=[5, 95],
       size = 50, show = False, dpi = 300, figsize = (10, 10),
       save = '%s.png' % key
     )

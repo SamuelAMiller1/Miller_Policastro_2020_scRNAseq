@@ -893,3 +893,36 @@ p <- ggplot(counts, aes(x = orig.ident, y = perc_exp)) +
 
 pdf(file.path("results", "custom_clusters", "select_genes_barplot.pdf"), height = 12, width = 4)
 p; dev.off()
+
+##############
+## EV vs KD ##
+##############
+
+options(future.globals.maxSize = 10000 * 1024 ^2)
+plan("multiprocess", workers = 6)
+
+seurat_integrated$conditions <- seurat_integrated$orig.ident %>%
+  {case_when(
+    str_detect(., "EV") ~ "EV",
+    str_detect(., "KD") ~ "KD",
+    str_detect(., "COLON") ~ "COLON"
+  )}
+
+seurat_subset <- subset(seurat_integrated, subset = conditions != "COLON_1")
+Idents(seurat_subset) <- "conditions"
+
+cluster_names <- as.character(unique(seurat_subset$custom_clusters))
+markers <- map(setNames(cluster_names, cluster_names), function(x) {
+  markers <- FindMarkers(
+    seurat_subset, slot = "data", assay = "SCT",
+    ident.1 = "KD", ident.2 = "EV", subset.ident = x
+  )
+  return(markers)
+})
+
+markers <- map(markers, function(x) {
+  x <- as.data.table(x, keep.rownames = "genes")
+  return(x)
+})
+markers <- rbindlist(markers, idcol = "cluster")
+setkey(markers, "avg_logFC")
