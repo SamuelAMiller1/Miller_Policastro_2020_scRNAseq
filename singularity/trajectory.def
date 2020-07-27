@@ -1,0 +1,29 @@
+bootstrap: docker
+From: continuumio/miniconda3
+
+%post
+
+## Allow conda to run.
+
+. /opt/conda/etc/profile.d/conda.sh
+
+## Update conda.
+
+conda update -n base -y -c defaults conda
+
+## Install required software.
+
+conda create -n trajectory -y cellrank-krylov openmpi mpi4py petsc \
+petsc4py slepc slepc4py -c conda-forge -c bioconda 
+
+## Update environment.
+
+conda update -n trajectory -y -c conda-forge -c bioconda --all
+
+## Clean up extra files.
+
+conda clean -y --all
+
+%environment
+
+export PATH=/opt/conda/envs/trajectory/bin/:$PATH
