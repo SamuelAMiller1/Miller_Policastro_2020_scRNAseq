@@ -57,7 +57,7 @@ for key,value in samples.items():
     scv.pl.velocity_embedding_stream(
       value, basis='umap', color=clusters,
       save = '%s.png' % key, title = key, show = False,
-      figsize = (10, 10), size = 50, dpi = 300
+      figsize = (10, 10), size = 50, dpi = 300, legend_fontsize = 0
     )
 
 ## Plot RNA velocity arrows.
@@ -266,7 +266,7 @@ for value in samples.values():
 ## Identify final states.
 
 for value in samples.values():
-    cr.tl.final_states(
+    cr.tl.terminal_states(
       value, cluster_key = clusters, weight_connectivities = 0.2,
       use_velocity_uncertainty = True
     )
@@ -274,28 +274,27 @@ for value in samples.values():
 ## Identify root states.
 
 for value in samples.values():
-    cr.tl.root_states(value, cluster_key = clusters)
+    cr.tl.initial_states(value, cluster_key = clusters)
 
 ## Compute the fate maps.
 
 for value in samples.values():
     cr.tl.lineages(value, cluster_key = clusters)
 
-## Find gene importance.
-model = cr.ul.models.GamMGCVModel(adata, n_splines=5, sp=100)  # requires R's 'mgcv' package
+# Compute lineage drivers
 for value in samples.values():
-    cr.tl.gene_importance(value, model, 
+    cr.tl.lineage_drivers(value, cluster_key = clusters)
 
 ## Make plots
 for key in samples:
-    scv.pl.scatter(samples[key], color='final_states', legend_loc='right margin', show = False, dpi = 300, figsize = (10, 10), save = '{}_final_states.png'.format(key))
-    scv.pl.scatter(samples[key], color='root_states', legend_loc='right margin', show = False, dpi = 300, figsize = (10, 10), save = '{}_root_states.png'.format(key))
+    scv.pl.scatter(samples[key], color='terminal_states', legend_loc='right margin', show = False, dpi = 300, figsize = (10, 10), save = '{}_final_states.png'.format(key))
+    scv.pl.scatter(samples[key], color='initial_states', legend_loc='right margin', show = False, dpi = 300, figsize = (10, 10), save = '{}_root_states.png'.format(key))
     cr.pl.lineages(samples[key], dpi = 300, figsize = (10, 10), save = '{}_lineages.png'.format(key))
     scv.pl.scatter(samples[key], color='final_states', color_gradients='to_final_states', legend_loc='right margin', dpi = 300, figsize = (10, 10), save = '{}_lineage_final_states.png'.format(key))
     cr.pl.cluster_fates(samples[key], cluster_key=clusters, mode='paga_pie', node_size_scale=4,
                        title=key, edge_width_scale=1, max_edge_width=2, threshold=0.1, basis='umap',
                        show = False, dpi = 300, figsize = (10, 10), save = '{}_paga.png'.format(key))
-
+#    cr.pl.lineage_drivers(samples[key], cluster_key=clusters, 
 #    Needs to be run after Dynamical Model
 #    scv.tl.recover_latent_time(samples[key], root_key='root_states_probs', end_key='final_states_probs')
 #    scv.pl.scatter(samples[key], color=[clusters, 'latent_time'], fontsize=16, cmap=cm.viridis, perc=[2, 98], colorbar=True, rescale_color=[0, 1],
