@@ -29,14 +29,9 @@ for key in samples:
     g = GPCCA(vk)
     g.compute_schur(n_components=20)
     g.plot_spectrum(real_only = False, save = "{}_eigenvalues.png".format(key))
-    if key == "H508_EV":
+    if key == "H508_EV" or key == "HT29_EV":
         g.plot_schur(use=4, cluster_key = clusters, show = False, dpi = 300, save = '{}_schur.png'.format(key))
         g.compute_metastable_states(n_states=4, cluster_key=clusters)
-        g.plot_metastable_states(show = False, dpi = 300, save = '{}_metastable.png'.format(key))
-        g.plot_metastable_states(same_plot = False, show = False, dpi = 300, save = '{}_individual_metastable.png'.format(key))
-    elif key == "HT29_EV":
-        g.plot_schur(use=3, cluster_key = clusters, show = False, dpi = 300, save = '{}_schur.png'.format(key))
-        g.compute_metastable_states(n_states=3, cluster_key=clusters)
         g.plot_metastable_states(show = False, dpi = 300, save = '{}_metastable.png'.format(key))
         g.plot_metastable_states(same_plot = False, show = False, dpi = 300, save = '{}_individual_metastable.png'.format(key))
     elif key == "H508_LSD1_KD":
@@ -58,7 +53,10 @@ for key in samples:
         print(samples[key].var.columns)
         if key == "HT29_EV":
             g.plot_lineage_drivers('17', save = '{}_17_lineage_drivers.png'.format(key))
-            g.plot_lineage_drivers('1', save = '{}_1_lineage_drivers.png'.format(key))
+            g.plot_lineage_drivers('1', save = '{}_10_lineage_drivers.png'.format(key))
+            g.plot_lineage_drivers('11', save = '{}_1_lineage_drivers.png'.format(key))
+            g.plot_lineage_drivers('4', save = '{}_4_lineage_drivers.png'.format(key))
+
         if key == "H508_EV":
             g.plot_lineage_drivers('10', save = '{}_10_lineage_drivers.png'.format(key))
             g.plot_lineage_drivers('17', save = '{}_17_lineage_drivers.png'.format(key))

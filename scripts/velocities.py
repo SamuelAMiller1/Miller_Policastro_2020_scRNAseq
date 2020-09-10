@@ -290,11 +290,10 @@ for key in samples:
     scv.pl.scatter(samples[key], color='terminal_states', legend_loc='right margin', show = False, dpi = 300, figsize = (10, 10), save = '{}_final_states.png'.format(key))
     scv.pl.scatter(samples[key], color='initial_states', legend_loc='right margin', show = False, dpi = 300, figsize = (10, 10), save = '{}_root_states.png'.format(key))
     cr.pl.lineages(samples[key], dpi = 300, figsize = (10, 10), save = '{}_lineages.png'.format(key))
-    scv.pl.scatter(samples[key], color='final_states', color_gradients='to_final_states', legend_loc='right margin', dpi = 300, figsize = (10, 10), save = '{}_lineage_final_states.png'.format(key))
+    scv.pl.scatter(samples[key], color='terminal_states', color_gradients='to_terminal_states', legend_loc='right margin', dpi = 300, figsize = (10, 10), save = '{}_lineage_final_states.png'.format(key))
     cr.pl.cluster_fates(samples[key], cluster_key=clusters, mode='paga_pie', node_size_scale=4,
                        title=key, edge_width_scale=1, max_edge_width=2, threshold=0.1, basis='umap',
                        show = False, dpi = 300, figsize = (10, 10), save = '{}_paga.png'.format(key))
-#    cr.pl.lineage_drivers(samples[key], cluster_key=clusters, 
 #    Needs to be run after Dynamical Model
 #    scv.tl.recover_latent_time(samples[key], root_key='root_states_probs', end_key='final_states_probs')
 #    scv.pl.scatter(samples[key], color=[clusters, 'latent_time'], fontsize=16, cmap=cm.viridis, perc=[2, 98], colorbar=True, rescale_color=[0, 1],
