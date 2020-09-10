@@ -258,47 +258,7 @@ for key,value in clusts.items():
 ## Cell Rank ##
 ###############
 
-## Recompute the velocities.
-
-for value in samples.values():
-    scv.tl.velocity_graph(value, mode_neighbors = 'connectivities', compute_uncertainties = True)
-
-## Identify final states.
-
-for value in samples.values():
-    cr.tl.terminal_states(
-      value, cluster_key = clusters, weight_connectivities = 0.2,
-      use_velocity_uncertainty = True
-    )
-
-## Identify root states.
-
-for value in samples.values():
-    cr.tl.initial_states(value, cluster_key = clusters)
-
-## Compute the fate maps.
-
-for value in samples.values():
-    cr.tl.lineages(value, cluster_key = clusters)
-
-# Compute lineage drivers
-for value in samples.values():
-    cr.tl.lineage_drivers(value, cluster_key = clusters)
-
-## Make plots
-for key in samples:
-    scv.pl.scatter(samples[key], color='terminal_states', legend_loc='right margin', show = False, dpi = 300, figsize = (10, 10), save = '{}_final_states.png'.format(key))
-    scv.pl.scatter(samples[key], color='initial_states', legend_loc='right margin', show = False, dpi = 300, figsize = (10, 10), save = '{}_root_states.png'.format(key))
-    cr.pl.lineages(samples[key], dpi = 300, figsize = (10, 10), save = '{}_lineages.png'.format(key))
-    scv.pl.scatter(samples[key], color='terminal_states', color_gradients='to_terminal_states', legend_loc='right margin', dpi = 300, figsize = (10, 10), save = '{}_lineage_final_states.png'.format(key))
-    cr.pl.cluster_fates(samples[key], cluster_key=clusters, mode='paga_pie', node_size_scale=4,
-                       title=key, edge_width_scale=1, max_edge_width=2, threshold=0.1, basis='umap',
-                       show = False, dpi = 300, figsize = (10, 10), save = '{}_paga.png'.format(key))
-#    Needs to be run after Dynamical Model
-#    scv.tl.recover_latent_time(samples[key], root_key='root_states_probs', end_key='final_states_probs')
-#    scv.pl.scatter(samples[key], color=[clusters, 'latent_time'], fontsize=16, cmap=cm.viridis, perc=[2, 98], colorbar=True, rescale_color=[0, 1],
-#              title=['clusters', 'latent time'], show = False, dpi = 300, figsize = (10, 10), save = '{}_smooth.png'.format(key))
-
+# Moved to cellrank.py
 
 ####################
 ## Joint Analysis ##

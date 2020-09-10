@@ -88,5 +88,12 @@ for key in samples:
 
     g.plot_metastable_states(discrete=True, show = False, dpi = 300, save = '{}_discrete_metastable.png'.format(key))
 
+# Directed PAGA
+
+for key in samples:
+    scv.tl.paga(samples[key], groups=clusters, root_key='initial_states_probs', end_key='terminal_states_probs', use_time_prior='velocity_pseudotime')
+    cr.pl.cluster_fates(samples[key], cluster_key=clusters, mode='paga_pie', node_size_scale=4,
+                       title=key, edge_width_scale=1, max_edge_width=2, threshold=0.1, basis='umap',
+                       show = False, dpi = 300, figsize = (10, 10), save = '{}_paga.png'.format(key))
 
 
