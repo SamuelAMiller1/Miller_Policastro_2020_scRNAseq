@@ -14,7 +14,7 @@ conda update -n base -y -c defaults conda
 ## Install required software.
 
 conda create -n trajectory -y cellrank-krylov openmpi mpi4py petsc \
-petsc4py slepc slepc4py -c conda-forge -c bioconda 
+petsc4py slepc slepc4py python-igraph -c conda-forge -c bioconda 
 
 ## Update environment.
 

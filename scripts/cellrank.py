@@ -29,14 +29,9 @@ for key in samples:
     g = GPCCA(vk)
     g.compute_schur(n_components=20)
     g.plot_spectrum(real_only = False, save = "{}_eigenvalues.png".format(key))
-    if key == "H508_EV":
+    if key == "H508_EV" or key == "HT29_EV":
         g.plot_schur(use=4, cluster_key = clusters, show = False, dpi = 300, save = '{}_schur.png'.format(key))
         g.compute_metastable_states(n_states=4, cluster_key=clusters)
-        g.plot_metastable_states(show = False, dpi = 300, save = '{}_metastable.png'.format(key))
-        g.plot_metastable_states(same_plot = False, show = False, dpi = 300, save = '{}_individual_metastable.png'.format(key))
-    elif key == "HT29_EV":
-        g.plot_schur(use=3, cluster_key = clusters, show = False, dpi = 300, save = '{}_schur.png'.format(key))
-        g.compute_metastable_states(n_states=3, cluster_key=clusters)
         g.plot_metastable_states(show = False, dpi = 300, save = '{}_metastable.png'.format(key))
         g.plot_metastable_states(same_plot = False, show = False, dpi = 300, save = '{}_individual_metastable.png'.format(key))
     elif key == "H508_LSD1_KD":
@@ -58,7 +53,10 @@ for key in samples:
         print(samples[key].var.columns)
         if key == "HT29_EV":
             g.plot_lineage_drivers('17', save = '{}_17_lineage_drivers.png'.format(key))
-            g.plot_lineage_drivers('1', save = '{}_1_lineage_drivers.png'.format(key))
+            g.plot_lineage_drivers('1', save = '{}_10_lineage_drivers.png'.format(key))
+            g.plot_lineage_drivers('11', save = '{}_1_lineage_drivers.png'.format(key))
+            g.plot_lineage_drivers('4', save = '{}_4_lineage_drivers.png'.format(key))
+
         if key == "H508_EV":
             g.plot_lineage_drivers('10', save = '{}_10_lineage_drivers.png'.format(key))
             g.plot_lineage_drivers('17', save = '{}_17_lineage_drivers.png'.format(key))
@@ -90,5 +88,12 @@ for key in samples:
 
     g.plot_metastable_states(discrete=True, show = False, dpi = 300, save = '{}_discrete_metastable.png'.format(key))
 
+# Directed PAGA
+
+for key in samples:
+    scv.tl.paga(samples[key], groups=clusters, root_key='initial_states_probs', end_key='terminal_states_probs', use_time_prior='velocity_pseudotime')
+    cr.pl.cluster_fates(samples[key], cluster_key=clusters, mode='paga_pie', node_size_scale=4,
+                       title=key, edge_width_scale=1, max_edge_width=2, threshold=0.1, basis='umap',
+                       show = False, dpi = 300, figsize = (10, 10), save = '{}_paga.png'.format(key))
 
 
