@@ -44,7 +44,7 @@ for key in samples:
         g.compute_metastable_states(n_states=1, cluster_key=clusters)
         g.plot_metastable_states(show = False, dpi = 300, save = '{}_metastable.png'.format(key))
     
-    g.plot_metastable_states(discrete=True, show = False, dpi = 300, save = '{}_discrete_metastable.png'.format(key))
+    g.plot_metastable_states(discrete=True, show = False, dpi = 300, legend_fontsize = 0, save = '{}_discrete_metastable.png'.format(key))
     g.set_final_states_from_metastable_states()
     if key == "H508_EV" or key == "HT29_EV":
         g.compute_absorption_probabilities()
@@ -86,7 +86,7 @@ for key in samples:
         g.compute_metastable_states(n_states=1, cluster_key=clusters)
         g.plot_metastable_states(show = False, dpi = 300, save = '{}_metastable.png'.format(key))
 
-    g.plot_metastable_states(discrete=True, show = False, dpi = 300, save = '{}_discrete_metastable.png'.format(key))
+    g.plot_metastable_states(discrete=True, show = False, dpi = 300, legend_fontsize = 0, save = '{}_discrete_metastable.png'.format(key))
 
 # Directed PAGA
 
